@@ -5,25 +5,28 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Red Rock Lyrics</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=Special+Elite&family=Source+Serif+4:opsz,wght@8..60,500;8..60,650&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Oswald:wght@500;600;700&display=swap');
   :root {
-    --bg: #1a120e;
-    --bg-alt: #241610;
-    --card: rgba(36, 22, 16, 0.88);
-    --text: #f4e6cf;
-    --muted: #c4a882;
+    --bg: #120d0a;
+    --bg-alt: #1c1410;
+    --card: rgba(28, 20, 16, 0.92);
+    --text: #f8eedc;
+    --muted: #e0c89a;
     --accent: #8b1c1c;
-    --accent2: #d4b45a;
+    --accent2: #e2c36a;
     --danger: #e05a5a;
-    --border: #5a3a28;
-    --font-size: 34px;
+    --border: #6a4630;
+    --font-size: 42px;
     --banner: url("banner.jpg");
+    --ui: "Atkinson Hyperlegible", "Trebuchet MS", sans-serif;
+    --display: Oswald, sans-serif;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
     margin: 0; padding: 0; height: 100%;
     background: var(--bg); color: var(--text);
-    font-family: "Source Serif 4", "Times New Roman", serif;
+    font-family: var(--ui);
+    -webkit-font-smoothing: antialiased;
     overscroll-behavior: none;
   }
   body {
@@ -56,13 +59,12 @@
     flex-shrink: 0;
   }
   .topbar h1 {
-    font-family: Oswald, sans-serif;
-    font-size: 22px; margin: 0; font-weight: 700;
-    letter-spacing: 2px; text-transform: uppercase; color: #e8d7b0;
+    font-family: var(--display);
+    font-size: 24px; margin: 0; font-weight: 700;
+    letter-spacing: 1.5px; text-transform: uppercase; color: var(--text);
   }
   .topbar .sub {
-    font-family: "Special Elite", serif;
-    font-size: 11px; color: var(--muted); margin-top: 3px; letter-spacing: .4px;
+    font-size: 14px; color: var(--muted); margin-top: 4px; letter-spacing: .2px;
   }
   .icon-btn {
     background: none; border: none; color: var(--text); font-size: 20px;
@@ -81,18 +83,19 @@
   #setlist-items { flex: 1; overflow-y: auto; padding: 10px 12px 24px; }
   #screen-setlist.view-set #setlist-items {
     background-image:
-      linear-gradient(180deg, rgba(26,18,14,0.72), rgba(26,18,14,0.9)),
+      linear-gradient(180deg, rgba(12,9,7,0.88), rgba(12,9,7,0.94)),
       var(--banner);
     background-size: cover;
     background-position: center top;
   }
   #home-label {
-    font-family: "Special Elite", serif;
+    font-family: var(--display);
     text-align: center;
-    padding: 18px 16px 6px;
+    padding: 20px 16px 8px;
     color: var(--muted);
-    letter-spacing: 1px;
-    font-size: 13px;
+    letter-spacing: 2px;
+    font-size: 15px;
+    text-transform: uppercase;
   }
   #set-picks { flex: 1; overflow-y: auto; padding: 8px 16px 16px; }
   #set-picks:empty { display: none; }
@@ -109,23 +112,24 @@
     background: var(--card); border: 1px solid var(--border);
     border-radius: 4px; padding: 12px 12px; margin-bottom: 8px;
   }
-  .song-row .num { color: var(--accent2); font-family: Oswald, sans-serif; font-size: 14px; width: 22px; text-align: center; flex-shrink:0; }
+  .song-row .num { color: var(--accent2); font-family: var(--display); font-size: 16px; width: 26px; text-align: center; flex-shrink:0; }
   .song-row .info {
     flex: 1; min-width: 0; cursor: pointer;
-    display: flex; align-items: baseline; gap: 8px;
+    display: flex; align-items: center; gap: 10px;
   }
   .song-row .title {
-    font-size: 16px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+    font-size: 18px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+    letter-spacing: 0.01em;
   }
   .song-row .artist {
-    font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    flex: 0 1 auto; max-width: 34%;
+    font-size: 15px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    flex: 0 1 auto; max-width: 36%; font-weight: 400;
   }
   .tempo-badge {
-    font-size: 11px; font-weight: 700; font-family: Oswald, sans-serif;
-    color: var(--accent2); background: rgba(212,180,90,0.12);
-    border: 1px solid rgba(212,180,90,0.4); border-radius: 4px; padding: 1px 6px; flex-shrink: 0;
-    margin-left: auto;
+    font-size: 13px; font-weight: 600; font-family: var(--display);
+    color: var(--accent2); background: rgba(226,195,106,0.14);
+    border: 1px solid rgba(226,195,106,0.45); border-radius: 4px; padding: 3px 7px; flex-shrink: 0;
+    margin-left: auto; letter-spacing: 0.5px;
   }
   .song-row .reorder { display: flex; gap: 2px; flex-shrink: 0; }
   .mini-btn {
@@ -146,7 +150,7 @@
   .btn {
     flex: 1; padding: 14px; border-radius: 4px; border: none; font-size: 14px; font-weight: 700;
     cursor: pointer; text-align: center;
-    font-family: Oswald, sans-serif; letter-spacing: 1px; text-transform: uppercase;
+    font-family: var(--display); letter-spacing: 1px; text-transform: uppercase;
   }
   .btn-primary { background: var(--accent); color: #f4e6cf; }
   .btn-secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); }
@@ -155,23 +159,26 @@
   /* ---------- Editor screen ---------- */
   #edit-body, #sets-body { flex: 1; overflow-y: auto; padding: 16px; }
   .field { margin-bottom: 14px; }
-  .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px; }
+  .field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .6px; font-family: var(--display); }
   .field input, .field textarea {
     width: 100%; background: var(--card); border: 1px solid var(--border); color: var(--text);
-    border-radius: 4px; padding: 12px; font-size: 16px; font-family: inherit;
+    border-radius: 4px; padding: 12px; font-size: 18px; font-family: var(--ui);
   }
-  .field textarea { min-height: 46vh; line-height: 1.5; resize: vertical; }
-  .hint { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+  .field textarea { min-height: 46vh; line-height: 1.55; resize: vertical; }
+  .hint { font-size: 14px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
 
   /* ---------- Reader screen ---------- */
-  #reader-topbar { background: rgba(26,18,14,0.9); }
+  #reader-topbar { background: rgba(12,9,7,0.94); }
   #reader-scroll {
-    flex: 1; overflow-y: auto; padding: 30px 26px 55vh;
+    flex: 1; overflow-y: auto; padding: 28px 22px 50vh;
     scroll-behavior: auto;
+    background: #0c0907;
   }
   #reader-scroll .lyrics {
-    font-size: var(--font-size); line-height: 1.6; white-space: pre-wrap;
-    font-weight: 500; max-width: 900px; margin: 0 auto;
+    font-size: var(--font-size); line-height: 1.5; white-space: pre-wrap;
+    font-weight: 700; max-width: 920px; margin: 0 auto;
+    letter-spacing: 0.015em;
+    font-variant-ligatures: none;
   }
   #reader-scroll .empty-hint {
     color: var(--muted); font-size: 18px; text-align: center; margin-top: 20vh; padding: 0 20px; line-height: 1.6;
@@ -206,13 +213,13 @@
   .controls-row2 span { display: flex; align-items: center; gap: 4px; }
 
   #song-header { padding: 4px 20px 2px; text-align: center; }
-  #song-header .t { font-size: 15px; font-weight: 700; font-family: Oswald, sans-serif; letter-spacing: 1px; }
-  #song-header .a-line { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 1px; }
-  #song-header .a { font-size: 12px; color: var(--muted); }
+  #song-header .t { font-size: 18px; font-weight: 700; font-family: var(--display); letter-spacing: 1px; }
+  #song-header .a-line { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 2px; }
+  #song-header .a { font-size: 14px; color: var(--muted); }
   #reader-tempo-badge {
     display: inline-flex; align-items: center; justify-content: center; gap: 5px;
     min-height: 26px; padding: 2px 10px; border-radius: 14px;
-    font-size: 12px; font-weight: 800; color: var(--accent2);
+    font-size: 13px; font-weight: 700; font-family: var(--display); color: var(--accent2);
     background: rgba(212,180,90,0.12); border: 1.5px solid rgba(212,180,90,0.4);
     transition: background-color 0.04s linear, box-shadow 0.04s linear, color 0.04s linear;
   }
@@ -521,9 +528,13 @@ async function persistActiveSet() {
 function loadSettings() {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (!parsed.fontSize || parsed.fontSize < 40) parsed.fontSize = 42;
+      return parsed;
+    }
   } catch (e) {}
-  return { theme: "dark", fontSize: 34 };
+  return { theme: "dark", fontSize: 42 };
 }
 function saveSettings() {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
@@ -577,7 +588,7 @@ function renderSetlist() {
       <div class="info" onclick="openReader(${i})">
         <div class="title">${escapeHtml(song.title || "Untitled")}</div>
         <div class="artist">${escapeHtml(song.artist || "")}</div>
-        ${song.tempo ? `<div class="tempo-badge">${song.tempo}</div>` : ""}
+        ${song.tempo ? `<div class="tempo-badge">${song.tempo} BPM</div>` : ""}
       </div>
       <div class="reorder">
         <button class="mini-btn" onclick="moveSong(${i}, -1)">&#9650;</button>
