@@ -35,12 +35,7 @@
     overscroll-behavior: none;
   }
   body {
-    background-image:
-      linear-gradient(180deg, rgba(26,18,14,0.82), rgba(26,18,14,0.94)),
-      var(--banner);
-    background-size: cover;
-    background-position: center top;
-    background-attachment: fixed;
+    background: var(--bg);
   }
   #app { height: 100%; display: flex; flex-direction: column; }
   .screen { display: none; flex-direction: column; height: 100%; }
@@ -49,12 +44,13 @@
   .hero-banner {
     flex-shrink: 0;
     width: 100%;
-    height: 28vw;
-    min-height: 120px;
-    max-height: 220px;
+    aspect-ratio: 1024 / 409;
+    max-height: 42vh;
     background-image: var(--banner);
-    background-size: cover;
+    background-size: contain;
+    background-repeat: no-repeat;
     background-position: center;
+    background-color: #140e0a;
     border-bottom: 3px solid var(--accent);
   }
 
@@ -83,8 +79,19 @@
   .icon-btn:active { background: var(--border); }
 
   /* ---------- Setlist screen ---------- */
+  #screen-setlist.view-home #setlist-items { display: none; }
+  #screen-setlist.view-set .hero-banner { display: none; }
+  #screen-setlist.view-set #set-picks { display: none; }
   #setlist-items { flex: 1; overflow-y: auto; padding: 10px 12px 100px; }
-  #set-picks { padding: 10px 12px 0; flex-shrink: 0; }
+  #screen-setlist.view-set #setlist-items {
+    background-image:
+      linear-gradient(180deg, rgba(26,18,14,0.72), rgba(26,18,14,0.9)),
+      var(--banner);
+    background-size: cover;
+    background-position: center top;
+    background-attachment: local;
+  }
+  #set-picks { padding: 10px 12px 0; flex-shrink: 0; overflow-y: auto; }
   #set-picks:empty { display: none; }
   .song-row {
     display: flex; align-items: center; gap: 10px;
@@ -208,12 +215,12 @@
 <div id="app">
 
   <!-- ================= SETLIST SCREEN ================= -->
-  <section id="screen-setlist" class="screen active">
+  <section id="screen-setlist" class="screen active view-home">
     <div class="hero-banner" role="img" aria-label="Red Rock Southern Rock Tribute"></div>
     <div class="topbar">
       <div>
-        <h1 id="show-title">Setlist</h1>
-        <div class="sub" id="show-sub">15 songs</div>
+        <h1 id="show-title">Red Rock</h1>
+        <div class="sub" id="show-sub">Choose a set</div>
       </div>
     </div>
     <div id="set-picks"></div>
@@ -224,7 +231,8 @@
         <button class="btn btn-secondary" onclick="requestWakeLock()">&#128268; Keep Awake</button>
       </div>
       <div class="bottom-actions">
-        <button class="btn btn-primary" onclick="openSharedSets()">Shared sets</button>
+        <button class="btn btn-primary" onclick="showHome()">Home</button>
+        <button class="btn btn-secondary" onclick="openSharedSets()">Shared sets</button>
         <button class="btn btn-secondary" onclick="exportData()">Export</button>
       </div>
       <div class="bottom-actions">
@@ -440,7 +448,9 @@ function showScreen(name) {
 function renderSetlist() {
   const container = document.getElementById("setlist-items");
   container.innerHTML = "";
-  document.getElementById("show-sub").textContent = songs.length + " song" + (songs.length === 1 ? "" : "s");
+  if (document.getElementById("screen-setlist").classList.contains("view-set")) {
+    document.getElementById("show-sub").textContent = songs.length + " song" + (songs.length === 1 ? "" : "s");
+  }
   songs.forEach((song, i) => {
     const row = document.createElement("div");
     row.className = "song-row";
@@ -570,6 +580,23 @@ function applySongsJson(text, successMessage) {
   }
 }
 
+function showHome() {
+  const screen = document.getElementById("screen-setlist");
+  screen.classList.add("view-home");
+  screen.classList.remove("view-set");
+  document.getElementById("show-title").textContent = "Red Rock";
+  document.getElementById("show-sub").textContent = "Choose a set";
+  showScreen("setlist");
+}
+function showSetView(name) {
+  const screen = document.getElementById("screen-setlist");
+  screen.classList.remove("view-home");
+  screen.classList.add("view-set");
+  if (name) document.getElementById("show-title").textContent = name;
+  renderSetlist();
+  showScreen("setlist");
+}
+
 function resolveJsonUrl(url) {
   return new URL(url, window.location.href).href;
 }
@@ -580,10 +607,8 @@ async function loadJsonFromUrl(url, name) {
     const res = await fetch(target, { cache: "no-store" });
     if (!res.ok) throw new Error("HTTP " + res.status);
     const text = await res.text();
-    const label = name ? "Loaded “" + name + "”." : "Loaded set from link.";
-    if (applySongsJson(text, label)) {
-      if (name) document.getElementById("show-title").textContent = name;
-      showScreen("setlist");
+    if (applySongsJson(text, name ? "Loaded “" + name + "”." : "Loaded set from link.")) {
+      showSetView(name);
     }
   } catch (e) {
     alert("Couldn't load that link. It must be a public HTTPS JSON file.");
