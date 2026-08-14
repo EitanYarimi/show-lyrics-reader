@@ -1,8 +1,8 @@
 {
   "sets": [
     {
-      "name": "Original songs",
-      "url": "./sets/originals.json"
+      "name": "Red Rock Setlist",
+      "url": "./sets/red-rock-setlist.json"
     }
   ]
 }
