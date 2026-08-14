@@ -39,21 +39,27 @@
   .hero-banner {
     flex: 0 0 auto;
     width: 100%;
-    height: 34vh;
-    min-height: 160px;
-    max-height: 280px;
     background: #140e0a;
     border-bottom: 3px solid var(--accent);
-    display: flex;
-    align-items: center;
-    justify-content: center;
   }
   .hero-banner img {
     display: block;
     width: 100%;
-    height: 100%;
+    height: auto;
+    aspect-ratio: 1024 / 409;
     object-fit: contain;
     object-position: center;
+  }
+  @media (min-width: 1024px) and (orientation: landscape) {
+    .hero-banner {
+      height: clamp(180px, 24vw, 300px);
+    }
+    .hero-banner img {
+      width: 100%;
+      height: 100%;
+      aspect-ratio: unset;
+      object-fit: cover;
+    }
   }
 
   /* ---------- Top bars ---------- */
