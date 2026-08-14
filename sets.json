@@ -1,0 +1,8 @@
+{
+  "sets": [
+    {
+      "name": "Original songs",
+      "url": "./sets/originals.json"
+    }
+  ]
+}
