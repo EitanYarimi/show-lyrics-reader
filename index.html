@@ -228,7 +228,7 @@
     height: 4px; background: var(--border); border-radius: 2px; margin-bottom: 12px; overflow: hidden;
   }
   .progress-fill { height: 100%; background: var(--accent); width: 0%; }
-  .controls-row { display: flex; align-items: center; gap: 8px; }
+  .controls-row { display: flex; align-items: center; justify-content: center; gap: 18px; }
   .play-btn {
     width: 58px; height: 58px; border-radius: 50%; border: none; background: var(--accent);
     color: #f4e6cf; font-size: 22px; display: flex; align-items: center; justify-content: center;
@@ -383,9 +383,13 @@
       <button class="icon-btn" onclick="openEditFromReader()" title="Edit">&#9998;</button>
     </div>
     <div id="reader-scroll" onclick="onReaderTap(event)"></div>
-    <div id="reader-controls" style="display:none;">
+    <div id="reader-controls">
       <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
-      <button class="play-btn" id="play-btn" onclick="togglePlay()">&#9654;</button>
+      <div class="controls-row">
+        <button class="speed-btn" onclick="changeFont(-2)">A&minus;</button>
+        <button class="play-btn" id="play-btn" onclick="togglePlay()">&#9654;</button>
+        <button class="speed-btn" onclick="changeFont(2)">A+</button>
+      </div>
       <div class="speed-label" id="speed-label" style="display:none">1.0x</div>
     </div>
   </section>
