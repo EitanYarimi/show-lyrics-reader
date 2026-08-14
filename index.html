@@ -19,14 +19,6 @@
     --font-size: 34px;
     --banner: url("banner.jpg");
   }
-  body.light {
-    --bg: #d8c4a4;
-    --bg-alt: #cbb896;
-    --card: rgba(244, 230, 207, 0.9);
-    --text: #2a1610;
-    --muted: #6b4a32;
-    --border: #a07850;
-  }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
     margin: 0; padding: 0; height: 100%;
@@ -44,13 +36,13 @@
   .hero-banner {
     flex-shrink: 0;
     width: 100%;
-    aspect-ratio: 1024 / 409;
-    max-height: 42vh;
+    height: 42vh;
+    min-height: 180px;
+    max-height: 340px;
     background-image: var(--banner);
-    background-size: contain;
+    background-size: cover;
     background-repeat: no-repeat;
-    background-position: center;
-    background-color: #140e0a;
+    background-position: center center;
     border-bottom: 3px solid var(--accent);
   }
 
@@ -79,20 +71,39 @@
   .icon-btn:active { background: var(--border); }
 
   /* ---------- Setlist screen ---------- */
-  #screen-setlist.view-home #setlist-items { display: none; }
-  #screen-setlist.view-set .hero-banner { display: none; }
-  #screen-setlist.view-set #set-picks { display: none; }
-  #setlist-items { flex: 1; overflow-y: auto; padding: 10px 12px 100px; }
+  #screen-setlist.view-home .topbar,
+  #screen-setlist.view-home #setlist-items,
+  #screen-setlist.view-home .bar-set { display: none; }
+  #screen-setlist.view-set .hero-banner,
+  #screen-setlist.view-set #set-picks,
+  #screen-setlist.view-set #home-label,
+  #screen-setlist.view-set .bar-home { display: none; }
+  #setlist-items { flex: 1; overflow-y: auto; padding: 10px 12px 24px; }
   #screen-setlist.view-set #setlist-items {
     background-image:
       linear-gradient(180deg, rgba(26,18,14,0.72), rgba(26,18,14,0.9)),
       var(--banner);
     background-size: cover;
     background-position: center top;
-    background-attachment: local;
   }
-  #set-picks { padding: 10px 12px 0; flex-shrink: 0; overflow-y: auto; }
+  #home-label {
+    font-family: "Special Elite", serif;
+    text-align: center;
+    padding: 18px 16px 6px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    font-size: 13px;
+  }
+  #set-picks { flex: 1; overflow-y: auto; padding: 8px 16px 16px; }
   #set-picks:empty { display: none; }
+  #set-picks .song-row {
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    padding: 16px 4px;
+    margin: 0;
+  }
   .song-row {
     display: flex; align-items: center; gap: 10px;
     background: var(--card); border: 1px solid var(--border);
@@ -120,14 +131,14 @@
   .mini-btn:active { background: var(--border); }
 
   .bottom-bar {
-    position: sticky; bottom: 0; flex-shrink: 0;
-    background: linear-gradient(to top, #1a120e 70%, transparent);
+    flex-shrink: 0;
+    background: #140e0a;
+    border-top: 1px solid var(--border);
     padding: 10px 16px calc(12px + env(safe-area-inset-bottom));
   }
   .bottom-actions {
     display: flex; gap: 8px;
   }
-  .bottom-actions + .bottom-actions { margin-top: 8px; }
   .btn {
     flex: 1; padding: 14px; border-radius: 4px; border: none; font-size: 14px; font-weight: 700;
     cursor: pointer; text-align: center;
@@ -222,22 +233,18 @@
         <h1 id="show-title">Red Rock</h1>
         <div class="sub" id="show-sub">Choose a set</div>
       </div>
+      <button class="icon-btn" onclick="addSong()" title="Add song">+</button>
     </div>
+    <div id="home-label">Choose a set</div>
     <div id="set-picks"></div>
     <div id="setlist-items"></div>
     <div class="bottom-bar">
-      <div class="bottom-actions">
-        <button class="btn btn-secondary" onclick="toggleTheme()">&#9788; Theme</button>
-        <button class="btn btn-secondary" onclick="requestWakeLock()">&#128268; Keep Awake</button>
+      <div class="bottom-actions bar-home">
+        <button class="btn btn-secondary" onclick="openSharedSets()">Settings</button>
       </div>
-      <div class="bottom-actions">
-        <button class="btn btn-primary" onclick="showHome()">Home</button>
-        <button class="btn btn-secondary" onclick="openSharedSets()">Shared sets</button>
-        <button class="btn btn-secondary" onclick="exportData()">Export</button>
-      </div>
-      <div class="bottom-actions">
-        <button class="btn btn-secondary" onclick="addSong()">+ Add Song</button>
-        <button class="btn btn-secondary" onclick="loadBackupFile()">Load file</button>
+      <div class="bottom-actions bar-set">
+        <button class="btn btn-secondary" onclick="showHome()">Home</button>
+        <button class="btn btn-primary" onclick="requestWakeLock()">Keep awake</button>
       </div>
     </div>
     <input type="file" id="import-file" accept="application/json" style="display:none" onchange="importData(event)">
@@ -247,8 +254,8 @@
   <section id="screen-sets" class="screen">
     <div class="topbar">
       <button class="icon-btn" onclick="showScreen('setlist')">&larr; Back</button>
-      <h1>Shared sets</h1>
-      <button class="icon-btn" onclick="loadSetsCatalog()">&#8635;</button>
+      <h1>Settings</h1>
+      <span></span>
     </div>
     <div id="sets-body">
       <div class="field">
@@ -267,7 +274,10 @@
         <button class="btn btn-secondary" onclick="saveGithubToken()">Save token</button>
       </div>
       <div class="hint" id="token-status" style="margin-bottom:16px;"></div>
-      <div id="sets-list"></div>
+      <div class="bottom-actions" style="padding:0 0 16px;">
+        <button class="btn btn-secondary" onclick="exportData()">Export</button>
+        <button class="btn btn-secondary" onclick="loadBackupFile()">Load file</button>
+      </div>
     </div>
   </section>
 
@@ -327,9 +337,7 @@
 
       <div class="controls-row" style="margin-bottom:10px;">
         <button class="play-btn" id="play-btn" onclick="togglePlay()">&#9654;</button>
-        <div style="flex:1; text-align:center; font-size:11px; color:var(--muted);">
-          Tap lyrics to pause &middot; swipe/edge-tap to change song
-        </div>
+        <div style="flex:1;"></div>
       </div>
 
       <div class="controls-row">
@@ -529,12 +537,7 @@ try { activeSet = JSON.parse(localStorage.getItem(ACTIVE_SET_KEY) || "null"); } 
    THEME / FONT
    ============================================================ */
 function applyTheme() {
-  document.body.classList.toggle("light", settings.theme === "light");
-}
-function toggleTheme() {
-  settings.theme = settings.theme === "light" ? "dark" : "light";
-  saveSettings();
-  applyTheme();
+  document.body.classList.remove("light");
 }
 function applyFont() {
   document.documentElement.style.setProperty("--font-size", settings.fontSize + "px");
@@ -565,7 +568,6 @@ function renderSetlist() {
   songs.forEach((song, i) => {
     const row = document.createElement("div");
     row.className = "song-row";
-    const hasLyrics = song.lyrics && song.lyrics.trim().length > 0;
     row.innerHTML = `
       <div class="num">${i + 1}</div>
       <div class="info" onclick="openReader(${i})">
@@ -574,7 +576,6 @@ function renderSetlist() {
           <div class="artist">${escapeHtml(song.artist || "")}</div>
           ${song.tempo ? `<div class="tempo-badge">${song.tempo} BPM</div>` : ""}
         </div>
-        <div class="status ${hasLyrics ? "has-lyrics" : "no-lyrics"}">${hasLyrics ? "Lyrics ready" : "Needs lyrics"}</div>
       </div>
       <div class="reorder">
         <button class="mini-btn" onclick="moveSong(${i}, -1)">&#9650;</button>
@@ -760,13 +761,11 @@ function renderSetRows(container, sets) {
     const row = document.createElement("div");
     row.className = "song-row";
     row.innerHTML = `
-      <div class="num">${i + 1}</div>
       <div class="info">
         <div class="title">${escapeHtml(name)}</div>
-        <div class="artist">${escapeHtml(url)}</div>
       </div>
       <div class="actions">
-        <button class="btn btn-primary" style="flex:none;padding:12px 16px;white-space:nowrap" data-setup="1">Set up</button>
+        <button class="btn btn-primary" style="flex:none;padding:12px 18px;white-space:nowrap" data-setup="1">Set up</button>
       </div>
     `;
     row.querySelector("[data-setup]").addEventListener("click", (e) => {
@@ -782,18 +781,16 @@ function renderSetRows(container, sets) {
 }
 
 async function loadSetsCatalog() {
-  const container = document.getElementById("sets-list");
   const picks = document.getElementById("set-picks");
-  container.innerHTML = "<div class='hint'>Loading shared sets…</div>";
+  if (picks) picks.innerHTML = "<div class='hint'>Loading sets…</div>";
   try {
     const res = await fetch(resolveJsonUrl("./sets.json"), { cache: "no-store" });
     if (!res.ok) throw new Error("HTTP " + res.status);
     const catalog = await res.json();
     const sets = Array.isArray(catalog) ? catalog : (catalog.sets || []);
-    renderSetRows(container, sets);
     if (picks) renderSetRows(picks, sets);
   } catch (e) {
-    container.innerHTML = "<div class='hint'>Couldn't load sets.json from the site.</div>";
+    if (picks) picks.innerHTML = "<div class='hint'>Couldn't load sets.</div>";
   }
 }
 
