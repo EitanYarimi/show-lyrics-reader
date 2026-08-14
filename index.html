@@ -607,7 +607,7 @@ async function loadJsonFromUrl(url, name) {
     const res = await fetch(target, { cache: "no-store" });
     if (!res.ok) throw new Error("HTTP " + res.status);
     const text = await res.text();
-    if (applySongsJson(text, name ? "Loaded “" + name + "”." : "Loaded set from link.")) {
+    if (applySongsJson(text)) {
       showSetView(name);
     }
   } catch (e) {
