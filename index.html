@@ -110,20 +110,24 @@
     border-radius: 4px; padding: 12px 12px; margin-bottom: 8px;
   }
   .song-row .num { color: var(--accent2); font-family: Oswald, sans-serif; font-size: 14px; width: 22px; text-align: center; flex-shrink:0; }
-  .song-row .info { flex: 1; min-width: 0; cursor: pointer; }
-  .song-row .title { font-size: 17px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .song-row .artist-line { display: flex; align-items: center; gap: 6px; margin-top: 2px; }
-  .song-row .artist { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .song-row .info {
+    flex: 1; min-width: 0; cursor: pointer;
+    display: flex; align-items: baseline; gap: 8px;
+  }
+  .song-row .title {
+    font-size: 16px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+  }
+  .song-row .artist {
+    font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    flex: 0 1 auto; max-width: 34%;
+  }
   .tempo-badge {
     font-size: 11px; font-weight: 700; font-family: Oswald, sans-serif;
     color: var(--accent2); background: rgba(212,180,90,0.12);
     border: 1px solid rgba(212,180,90,0.4); border-radius: 4px; padding: 1px 6px; flex-shrink: 0;
+    margin-left: auto;
   }
-  .song-row .status { font-size: 11px; margin-top: 4px; }
-  .status.has-lyrics { color: #8fbf7a; }
-  .status.no-lyrics { color: var(--accent2); }
-  .song-row .actions { display: flex; gap: 2px; flex-shrink: 0; }
-  .song-row .reorder { display:flex; flex-direction:column; gap:2px; }
+  .song-row .reorder { display: flex; gap: 2px; flex-shrink: 0; }
   .mini-btn {
     background: var(--bg-alt); border: 1px solid var(--border); color: var(--text);
     border-radius: 4px; padding: 6px 9px; font-size: 14px; cursor: pointer;
@@ -572,10 +576,8 @@ function renderSetlist() {
       <div class="num">${i + 1}</div>
       <div class="info" onclick="openReader(${i})">
         <div class="title">${escapeHtml(song.title || "Untitled")}</div>
-        <div class="artist-line">
-          <div class="artist">${escapeHtml(song.artist || "")}</div>
-          ${song.tempo ? `<div class="tempo-badge">${song.tempo} BPM</div>` : ""}
-        </div>
+        <div class="artist">${escapeHtml(song.artist || "")}</div>
+        ${song.tempo ? `<div class="tempo-badge">${song.tempo}</div>` : ""}
       </div>
       <div class="reorder">
         <button class="mini-btn" onclick="moveSong(${i}, -1)">&#9650;</button>
