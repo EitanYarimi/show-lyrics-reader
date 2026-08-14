@@ -91,21 +91,34 @@
   #home-label {
     font-family: var(--display);
     text-align: center;
-    padding: 20px 16px 8px;
+    padding: 22px 16px 14px;
     color: var(--muted);
     letter-spacing: 2px;
-    font-size: 15px;
+    font-size: 18px;
     text-transform: uppercase;
   }
-  #set-picks { flex: 1; overflow-y: auto; padding: 8px 16px 16px; }
+  #set-picks { flex: 1; overflow-y: auto; padding: 4px 20px 20px; }
   #set-picks:empty { display: none; }
   #set-picks .song-row {
-    background: transparent;
-    border: 0;
-    border-bottom: 1px solid var(--border);
-    border-radius: 0;
-    padding: 16px 4px;
-    margin: 0;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 18px 16px;
+    margin: 0 0 12px;
+    gap: 16px;
+  }
+  #set-picks .title {
+    font-family: var(--display);
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    white-space: normal;
+  }
+  #set-picks .btn {
+    flex: none;
+    padding: 16px 22px;
+    font-size: 16px;
   }
   .song-row {
     display: flex; align-items: center; gap: 10px;
@@ -778,7 +791,7 @@ function renderSetRows(container, sets) {
         <div class="title">${escapeHtml(name)}</div>
       </div>
       <div class="actions">
-        <button class="btn btn-primary" style="flex:none;padding:12px 18px;white-space:nowrap" data-setup="1">Set up</button>
+        <button class="btn btn-primary" data-setup="1">Set up</button>
       </div>
     `;
     row.querySelector("[data-setup]").addEventListener("click", (e) => {
