@@ -259,6 +259,14 @@
         <button class="btn btn-primary" onclick="loadJsonFromInput()">Load URL</button>
       </div>
       <div class="hint" style="margin-bottom:16px;">Links below come from sets.json in the repo. Add original-song JSON URLs there to share with your band.</div>
+      <div class="field">
+        <label>GitHub token (saves edits back to the JSON)</label>
+        <input id="github-token" type="password" placeholder="ghp_..." autocomplete="off">
+      </div>
+      <div class="bottom-actions" style="padding:0 0 16px;">
+        <button class="btn btn-secondary" onclick="saveGithubToken()">Save token</button>
+      </div>
+      <div class="hint" id="token-status" style="margin-bottom:16px;"></div>
       <div id="sets-list"></div>
     </div>
   </section>
@@ -290,12 +298,13 @@
       <div class="field">
         <label>Lyrics</label>
         <textarea id="edit-lyrics" placeholder="Paste the lyrics for this song here. Leave a blank line between verses/choruses. This text stays only on this device."></textarea>
-        <div class="hint">Paste lyrics you already have rights to use (your own charts, licensed lyric sheets, etc). This app doesn't fetch or store lyrics from the internet &mdash; everything you type stays local on this iPad.</div>
+        <div class="hint">Edits are saved to this set's JSON on GitHub so your band gets the same version.</div>
       </div>
     </div>
     <div class="bottom-actions">
       <button class="btn btn-primary" onclick="saveSong()">Save</button>
     </div>
+    <div class="hint" id="save-status" style="padding:0 16px 12px;"></div>
   </section>
 
   <!-- ================= READER SCREEN ================= -->
@@ -374,6 +383,9 @@ const DEFAULT_SONGS = [
 
 const STORAGE_KEY = "showLyricsReaderData_v1";
 const SETTINGS_KEY = "showLyricsReaderSettings_v1";
+const TOKEN_KEY = "showLyricsReaderGithubToken";
+const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
+const GH_REPO = "EitanYarimi/show-lyrics-reader";
 
 function loadSongs() {
   let stored = null;
@@ -394,8 +406,105 @@ function loadSongs() {
     return song;
   });
 }
-function saveSongs() {
+function saveSongs(syncRemote) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(songs));
+  if (syncRemote) persistActiveSet();
+}
+
+function setSaveStatus(text) {
+  const el = document.getElementById("save-status");
+  if (el) el.textContent = text || "";
+}
+
+function repoPathFromUrl(url) {
+  if (!url) return null;
+  try {
+    const u = new URL(url, "https://eitanyarimi.github.io/show-lyrics-reader/");
+    if (u.hostname === "eitanyarimi.github.io") {
+      return decodeURIComponent(u.pathname.replace(/^\/show-lyrics-reader\//, ""));
+    }
+    const blob = u.pathname.match(/\/show-lyrics-reader\/(?:blob\/[^/]+\/)?(.+\.json)$/);
+    if (u.hostname === "github.com" && blob) return blob[1];
+    const raw = u.pathname.match(/\/EitanYarimi\/show-lyrics-reader\/[^/]+\/(.+\.json)$/);
+    if (u.hostname === "raw.githubusercontent.com" && raw) return raw[1];
+  } catch (e) {}
+  if (url.startsWith("./")) return url.slice(2);
+  if (!url.includes("://")) return url.replace(/^\//, "");
+  return null;
+}
+
+function toBase64(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = "";
+  bytes.forEach((b) => { bin += String.fromCharCode(b); });
+  return btoa(bin);
+}
+
+function saveGithubToken() {
+  const value = (document.getElementById("github-token").value || "").trim();
+  if (!value) {
+    localStorage.removeItem(TOKEN_KEY);
+    document.getElementById("token-status").textContent = "Token cleared. Edits will stay on this device only.";
+    return;
+  }
+  localStorage.setItem(TOKEN_KEY, value);
+  document.getElementById("token-status").textContent = "Token saved on this device. Edits will write to the JSON.";
+}
+
+function fillGithubTokenField() {
+  const input = document.getElementById("github-token");
+  const status = document.getElementById("token-status");
+  if (!input) return;
+  const token = localStorage.getItem(TOKEN_KEY) || "";
+  input.value = token;
+  if (status) {
+    status.textContent = token
+      ? "Token is saved on this device."
+      : "Create a GitHub token with repo access, paste it here once, then Save token.";
+  }
+}
+
+async function persistActiveSet() {
+  const path = activeSet && activeSet.path;
+  const token = localStorage.getItem(TOKEN_KEY) || "";
+  if (!path) {
+    setSaveStatus("Saved on this device. Set up a shared set to write the JSON.");
+    return;
+  }
+  if (!token) {
+    setSaveStatus("Saved on this device. Add a GitHub token in Shared sets to update the JSON.");
+    return;
+  }
+  setSaveStatus("Saving to JSON…");
+  try {
+    const api = "https://api.github.com/repos/" + GH_REPO + "/contents/" + path;
+    const headers = {
+      Accept: "application/vnd.github+json",
+      Authorization: "Bearer " + token,
+    };
+    const current = await fetch(api, { headers, cache: "no-store" });
+    if (!current.ok) throw new Error("read " + current.status);
+    const meta = await current.json();
+    const body = JSON.stringify({
+      message: "Update " + path + " from Red Rock reader",
+      content: toBase64(JSON.stringify(songs, null, 2)),
+      sha: meta.sha,
+      branch: "main",
+    });
+    const put = await fetch(api, {
+      method: "PUT",
+      headers: Object.assign({ "Content-Type": "application/json" }, headers),
+      body: body,
+    });
+    if (!put.ok) throw new Error("write " + put.status);
+    setSaveStatus("Saved to " + path);
+    const sub = document.getElementById("show-sub");
+    if (sub && document.getElementById("screen-setlist").classList.contains("view-set")) {
+      sub.textContent = "Saved to JSON";
+    }
+  } catch (e) {
+    setSaveStatus("Saved on this device. Couldn't update the GitHub JSON.");
+  }
 }
 function loadSettings() {
   try {
@@ -413,6 +522,8 @@ let settings = loadSettings();
 let currentIndex = 0;
 let editingIndex = null;
 let wakeLock = null;
+let activeSet = null;
+try { activeSet = JSON.parse(localStorage.getItem(ACTIVE_SET_KEY) || "null"); } catch (e) {}
 
 /* ============================================================
    THEME / FONT
@@ -480,12 +591,12 @@ function moveSong(i, dir) {
   const j = i + dir;
   if (j < 0 || j >= songs.length) return;
   [songs[i], songs[j]] = [songs[j], songs[i]];
-  saveSongs();
+  saveSongs(true);
   renderSetlist();
 }
 function addSong() {
   songs.push({ title: "New Song", artist: "", tempo: null, duration: "", lyrics: "" });
-  saveSongs();
+  saveSongs(true);
   openEdit(songs.length - 1);
 }
 function escapeHtml(str) {
@@ -520,7 +631,7 @@ function saveSong() {
     duration: document.getElementById("edit-duration").value.trim(),
     lyrics: document.getElementById("edit-lyrics").value,
   };
-  saveSongs();
+  saveSongs(true);
   renderSetlist();
   showScreen("setlist");
 }
@@ -528,7 +639,7 @@ function deleteSong() {
   if (editingIndex === null) return;
   if (!confirm("Delete this song from the set list?")) return;
   songs.splice(editingIndex, 1);
-  saveSongs();
+  saveSongs(true);
   renderSetlist();
   showScreen("setlist");
 }
@@ -602,12 +713,25 @@ function resolveJsonUrl(url) {
 }
 
 async function loadJsonFromUrl(url, name) {
-  const target = resolveJsonUrl(url);
   try {
-    const res = await fetch(target, { cache: "no-store" });
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    const text = await res.text();
+    const path = repoPathFromUrl(url);
+    const token = localStorage.getItem(TOKEN_KEY) || "";
+    let text = null;
+    if (path && token) {
+      const apiRes = await fetch("https://api.github.com/repos/" + GH_REPO + "/contents/" + path, {
+        headers: { Authorization: "Bearer " + token, Accept: "application/vnd.github.raw+json" },
+        cache: "no-store",
+      });
+      if (apiRes.ok) text = await apiRes.text();
+    }
+    if (text == null) {
+      const res = await fetch(resolveJsonUrl(url), { cache: "no-store" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      text = await res.text();
+    }
     if (applySongsJson(text)) {
+      activeSet = { name: name || "", url: url, path: path };
+      localStorage.setItem(ACTIVE_SET_KEY, JSON.stringify(activeSet));
       showSetView(name);
     }
   } catch (e) {
@@ -674,6 +798,7 @@ async function loadSetsCatalog() {
 }
 
 function openSharedSets() {
+  fillGithubTokenField();
   showScreen("sets");
   loadSetsCatalog();
 }
