@@ -53,12 +53,15 @@
   @media (min-width: 1024px) and (orientation: landscape) {
     .hero-banner {
       height: clamp(180px, 24vw, 300px);
+      margin: 0;
+      padding: 0;
     }
     .hero-banner img {
       width: 100%;
       height: 100%;
       aspect-ratio: unset;
       object-fit: cover;
+      object-position: top center;
     }
   }
 
@@ -86,6 +89,12 @@
   .icon-btn:active { background: var(--border); }
 
   /* ---------- Setlist screen ---------- */
+  #screen-setlist.view-home {
+    padding-top: 0;
+  }
+  #screen-setlist.view-home .hero-banner {
+    margin-top: 0;
+  }
   #screen-setlist.view-home .topbar,
   #screen-setlist.view-home #setlist-items,
   #screen-setlist.view-home .bar-set { display: none; }
