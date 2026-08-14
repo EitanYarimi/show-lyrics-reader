@@ -84,6 +84,8 @@
 
   /* ---------- Setlist screen ---------- */
   #setlist-items { flex: 1; overflow-y: auto; padding: 10px 12px 100px; }
+  #set-picks { padding: 10px 12px 0; flex-shrink: 0; }
+  #set-picks:empty { display: none; }
   .song-row {
     display: flex; align-items: center; gap: 10px;
     background: var(--card); border: 1px solid var(--border);
@@ -214,6 +216,7 @@
         <div class="sub" id="show-sub">15 songs</div>
       </div>
     </div>
+    <div id="set-picks"></div>
     <div id="setlist-items"></div>
     <div class="bottom-bar">
       <div class="bottom-actions">
@@ -571,13 +574,15 @@ function resolveJsonUrl(url) {
   return new URL(url, window.location.href).href;
 }
 
-async function loadJsonFromUrl(url) {
+async function loadJsonFromUrl(url, name) {
   const target = resolveJsonUrl(url);
   try {
     const res = await fetch(target, { cache: "no-store" });
     if (!res.ok) throw new Error("HTTP " + res.status);
     const text = await res.text();
-    if (applySongsJson(text, "Loaded set from link.")) {
+    const label = name ? "Loaded “" + name + "”." : "Loaded set from link.";
+    if (applySongsJson(text, label)) {
+      if (name) document.getElementById("show-title").textContent = name;
       showScreen("setlist");
     }
   } catch (e) {
@@ -594,31 +599,50 @@ function loadJsonFromInput() {
   loadJsonFromUrl(url);
 }
 
+function renderSetRows(container, sets) {
+  container.innerHTML = "";
+  if (!sets.length) {
+    container.innerHTML = "<div class='hint'>No shared sets yet. Add original-song JSON links in sets.json.</div>";
+    return;
+  }
+  sets.forEach((set, i) => {
+    const name = set.name || "Untitled set";
+    const url = set.url || "";
+    const row = document.createElement("div");
+    row.className = "song-row";
+    row.innerHTML = `
+      <div class="num">${i + 1}</div>
+      <div class="info">
+        <div class="title">${escapeHtml(name)}</div>
+        <div class="artist">${escapeHtml(url)}</div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" style="flex:none;padding:12px 16px;white-space:nowrap" data-setup="1">Set up</button>
+      </div>
+    `;
+    row.querySelector("[data-setup]").addEventListener("click", (e) => {
+      e.stopPropagation();
+      loadJsonFromUrl(url, name);
+    });
+    row.addEventListener("click", (e) => {
+      if (e.target.closest("button")) return;
+      loadJsonFromUrl(url, name);
+    });
+    container.appendChild(row);
+  });
+}
+
 async function loadSetsCatalog() {
   const container = document.getElementById("sets-list");
+  const picks = document.getElementById("set-picks");
   container.innerHTML = "<div class='hint'>Loading shared sets…</div>";
   try {
     const res = await fetch(resolveJsonUrl("./sets.json"), { cache: "no-store" });
     if (!res.ok) throw new Error("HTTP " + res.status);
     const catalog = await res.json();
     const sets = Array.isArray(catalog) ? catalog : (catalog.sets || []);
-    container.innerHTML = "";
-    if (!sets.length) {
-      container.innerHTML = "<div class='hint'>No shared sets yet. Add original-song JSON links in sets.json.</div>";
-      return;
-    }
-    sets.forEach((set, i) => {
-      const row = document.createElement("div");
-      row.className = "song-row";
-      row.innerHTML = `
-        <div class="num">${i + 1}</div>
-        <div class="info" onclick="loadJsonFromUrl(${JSON.stringify(set.url || "")})">
-          <div class="title">${escapeHtml(set.name || "Untitled set")}</div>
-          <div class="artist">${escapeHtml(set.url || "")}</div>
-        </div>
-      `;
-      container.appendChild(row);
-    });
+    renderSetRows(container, sets);
+    if (picks) renderSetRows(picks, sets);
   } catch (e) {
     container.innerHTML = "<div class='hint'>Couldn't load sets.json from the site.</div>";
   }
@@ -825,6 +849,7 @@ document.addEventListener("visibilitychange", async () => {
 applyTheme();
 applyFont();
 renderSetlist();
+loadSetsCatalog();
 </script>
 </body>
 </html>
