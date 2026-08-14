@@ -200,55 +200,10 @@
   }
 
   ::-webkit-scrollbar { display: none; }
-
-  /* ---------- Lock screen ---------- */
-  #lock-screen {
-    position: fixed; inset: 0; z-index: 50;
-    display: flex; flex-direction: column; align-items: stretch; justify-content: flex-end;
-    background: #1a120e url("banner.jpg") center / cover no-repeat;
-    padding: 0;
-  }
-  #lock-screen::before {
-    content: "";
-    position: absolute; inset: 0;
-    background: linear-gradient(180deg, rgba(26,18,14,0.15) 20%, rgba(26,18,14,0.88) 70%);
-  }
-  #lock-screen.hidden { display: none; }
-  #lock-box {
-    position: relative; z-index: 1;
-    width: 100%; max-width: 420px; margin: 0 auto;
-    padding: 24px 24px calc(28px + env(safe-area-inset-bottom));
-  }
-  #lock-box h1 {
-    margin: 0 0 6px; font-size: 42px; font-family: Oswald, sans-serif;
-    letter-spacing: 4px; text-transform: uppercase; color: #8b1c1c;
-    text-shadow: 0 2px 0 #3a120c;
-  }
-  #lock-box .tag {
-    font-family: "Special Elite", serif; font-size: 12px; color: var(--accent2);
-    margin: 0 0 16px; letter-spacing: 1px;
-  }
-  #lock-box p { margin: 0 0 18px; color: var(--muted); font-size: 14px; line-height: 1.4; }
-  #lock-password {
-    width: 100%; background: rgba(26,18,14,0.8); border: 1px solid var(--border); color: var(--text);
-    border-radius: 4px; padding: 16px; font-size: 18px; margin-bottom: 12px;
-  }
-  #lock-error { color: var(--danger); font-size: 13px; min-height: 18px; margin: 8px 0 0; }
-  #app.locked { visibility: hidden; }
 </style>
 </head>
 <body>
-<div id="lock-screen">
-  <div id="lock-box">
-    <h1>Red Rock</h1>
-    <div class="tag">A Southern Rock Tribute</div>
-    <p>Enter the password to open the setlist.</p>
-    <input id="lock-password" type="password" placeholder="Password" autocomplete="current-password">
-    <button class="btn btn-primary" style="width:100%" onclick="unlockApp()">Unlock</button>
-    <div id="lock-error"></div>
-  </div>
-</div>
-<div id="app" class="locked">
+<div id="app">
 
   <!-- ================= SETLIST SCREEN ================= -->
   <section id="screen-setlist" class="screen active">
@@ -268,7 +223,6 @@
       <div class="bottom-actions">
         <button class="btn btn-primary" onclick="openSharedSets()">Shared sets</button>
         <button class="btn btn-secondary" onclick="exportData()">Export</button>
-        <button class="btn btn-secondary" onclick="lockApp()">Lock</button>
       </div>
       <div class="bottom-actions">
         <button class="btn btn-secondary" onclick="addSong()">+ Add Song</button>
@@ -409,8 +363,6 @@ const DEFAULT_SONGS = [
 
 const STORAGE_KEY = "showLyricsReaderData_v1";
 const SETTINGS_KEY = "showLyricsReaderSettings_v1";
-const PASSWORD_HASH = "eec5be16763f784e7bde60ba4b64a9daa2facce0791174e107839ce2e43720a4";
-const UNLOCK_KEY = "showLyricsReaderUnlocked";
 
 function loadSongs() {
   let stored = null;
@@ -678,41 +630,6 @@ function openSharedSets() {
 }
 
 /* ============================================================
-   PASSWORD LOCK
-   ============================================================ */
-async function hashPassword(value) {
-  const bytes = new TextEncoder().encode(value);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, "0")).join("");
-}
-function showUnlocked() {
-  document.getElementById("lock-screen").classList.add("hidden");
-  document.getElementById("app").classList.remove("locked");
-  sessionStorage.setItem(UNLOCK_KEY, "1");
-}
-function lockApp() {
-  sessionStorage.removeItem(UNLOCK_KEY);
-  document.getElementById("lock-password").value = "";
-  document.getElementById("lock-error").textContent = "";
-  document.getElementById("app").classList.add("locked");
-  document.getElementById("lock-screen").classList.remove("hidden");
-  showScreen("setlist");
-}
-async function unlockApp() {
-  const entered = document.getElementById("lock-password").value;
-  const hash = await hashPassword(entered);
-  if (hash !== PASSWORD_HASH) {
-    document.getElementById("lock-error").textContent = "Wrong password.";
-    return;
-  }
-  document.getElementById("lock-error").textContent = "";
-  showUnlocked();
-}
-document.getElementById("lock-password").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") unlockApp();
-});
-
-/* ============================================================
    READER SCREEN
    ============================================================ */
 let scrollAnim = null;
@@ -908,9 +825,6 @@ document.addEventListener("visibilitychange", async () => {
 applyTheme();
 applyFont();
 renderSetlist();
-if (sessionStorage.getItem(UNLOCK_KEY) === "1") {
-  showUnlocked();
-}
 </script>
 </body>
 </html>
