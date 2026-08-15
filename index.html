@@ -822,7 +822,7 @@ const TOKEN_KEY = "showLyricsReaderGithubToken";
 const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
 const GH_REPO = "EitanYarimi/show-lyrics-reader";
 /* Bump APP_VERSION on each release (shown small on the home screen). */
-const APP_VERSION = "1.0.21";
+const APP_VERSION = "1.0.22";
 
 function loadSongs() {
   let stored = null;
@@ -1412,10 +1412,24 @@ function openReader(i) {
 function resetReaderScrollToTop() {
   const scrollEl = document.getElementById("reader-scroll");
   scrollPos = 0;
-  if (scrollEl) {
+  if (!scrollEl) return;
+  const apply = () => {
     scrollEl.scrollTop = 0;
+    scrollPos = 0;
+    // Force the first lyric into view, then re-zero (iOS sometimes restores scroll after layout).
+    const first = scrollEl.querySelector(".lyric-line.first-line, .lyric-line");
+    if (first) {
+      try { first.scrollIntoView({ block: "start", inline: "nearest" }); } catch (e) {}
+      scrollEl.scrollTop = 0;
+      scrollPos = 0;
+    }
     updateProgress();
-  }
+  };
+  apply();
+  requestAnimationFrame(() => {
+    apply();
+    requestAnimationFrame(apply);
+  });
 }
 function loadReaderSong(opts) {
   const autoPlayDelay = opts && opts.autoPlayDelay != null ? opts.autoPlayDelay : 10;
@@ -1522,6 +1536,8 @@ function showAnnounceBar(label, song, opts) {
   const header = document.getElementById("song-header");
   // Keep the normal title visible while listening so lyrics aren't covered by a big banner.
   if (header) header.style.visibility = listening ? "" : "hidden";
+  // Banner sits above the lyrics pane — always pin scroll so first lines aren't under it.
+  resetReaderScrollToTop();
 }
 function hideAnnounceBar() {
   const bar = document.getElementById("announce-bar");
@@ -1796,6 +1812,7 @@ function startSongCountdown(targetIndex) {
   disarmSongStart();
   cancelIntroCountdown();
   cancelSongCountdown();
+  resetReaderScrollToTop();
   const current = songs[currentIndex] || {};
   const next = songs[targetIndex] || {};
   // Keep header on the current song; announce the next one in the top bar only.
