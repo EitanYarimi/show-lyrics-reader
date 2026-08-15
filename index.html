@@ -692,7 +692,7 @@ const TOKEN_KEY = "showLyricsReaderGithubToken";
 const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
 const GH_REPO = "EitanYarimi/show-lyrics-reader";
 /* Bump APP_VERSION on each release (shown small on the home screen). */
-const APP_VERSION = "1.0.6";
+const APP_VERSION = "1.0.7";
 
 function loadSongs() {
   let stored = null;
@@ -1543,10 +1543,12 @@ function nextSong() {
 function scrollSpeedPxPerSec(song, scrollEl) {
   const maxScroll = Math.max(0, scrollEl.scrollHeight - scrollEl.clientHeight);
   const durSec = parseDurationToSeconds(song.duration);
-  if (durSec && durSec > 0 && maxScroll > 0) return Math.max(8, maxScroll / durSec);
+  // If song length is set, fit the full scroll to that duration.
+  if (durSec && durSec > 0 && maxScroll > 0) return Math.max(4, maxScroll / durSec);
   const tempo = Number(song.tempo) || 120;
   const lineH = (settings.fontSize || 42) * 1.45;
-  return Math.max(12, (tempo / 60) * lineH);
+  // About one lyric line every two beats — readable on stage, not a race.
+  return Math.max(6, (tempo / 60) * (lineH / 2));
 }
 
 function togglePlay() {
