@@ -724,7 +724,7 @@ const TOKEN_KEY = "showLyricsReaderGithubToken";
 const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
 const GH_REPO = "EitanYarimi/show-lyrics-reader";
 /* Bump APP_VERSION on each release (shown small on the home screen). */
-const APP_VERSION = "1.0.10";
+const APP_VERSION = "1.0.11";
 
 function loadSongs() {
   let stored = null;
@@ -919,25 +919,136 @@ function renderSetlist() {
   songs.forEach((song, i) => {
     const row = document.createElement("div");
     row.className = "song-row";
+    row.dataset.origIndex = String(i);
     row.innerHTML = `
+      <button type="button" class="drag-handle" title="Drag to reorder" aria-label="Drag to reorder">&#9776;</button>
       <div class="num">${i + 1}</div>
-      <div class="info" onclick="openReader(${i})">
+      <div class="info">
         <div class="title">${escapeHtml(song.title || "Untitled")}</div>
         <div class="artist">${escapeHtml(song.artist || "")}</div>
         ${song.tempo ? `<div class="tempo-badge">${song.tempo} BPM</div>` : ""}
         ${song.key ? `<div class="tempo-badge">${escapeHtml(song.key)}</div>` : ""}
       </div>
-      <div class="reorder">
-        <button class="mini-btn" onclick="moveSong(${i}, -1)">&#9650;</button>
-        <button class="mini-btn" onclick="moveSong(${i}, 1)">&#9660;</button>
-      </div>
       <div class="actions">
-        <button class="mini-btn" onclick="openEdit(${i})">&#9998;</button>
+        <button type="button" class="mini-btn" data-edit="${i}">&#9998;</button>
       </div>
     `;
+    row.querySelector(".info").addEventListener("click", () => openReader(i));
+    row.querySelector("[data-edit]").addEventListener("click", (e) => {
+      e.stopPropagation();
+      openEdit(i);
+    });
+    row.querySelector(".drag-handle").addEventListener("pointerdown", onSongDragStart);
     container.appendChild(row);
   });
 }
+
+let songDrag = null;
+
+function onSongDragStart(e) {
+  if (e.button != null && e.button !== 0) return;
+  const handle = e.currentTarget;
+  const row = handle.closest(".song-row");
+  const container = document.getElementById("setlist-items");
+  if (!row || !container) return;
+  e.preventDefault();
+  e.stopPropagation();
+
+  const rect = row.getBoundingClientRect();
+  const placeholder = document.createElement("div");
+  placeholder.className = "song-row drag-placeholder";
+  placeholder.style.height = rect.height + "px";
+  placeholder.style.marginBottom = getComputedStyle(row).marginBottom;
+
+  songDrag = {
+    row,
+    placeholder,
+    container,
+    offsetY: e.clientY - rect.top,
+    pointerId: e.pointerId,
+    width: rect.width,
+    left: rect.left,
+    moved: false,
+  };
+
+  container.insertBefore(placeholder, row.nextSibling);
+  row.classList.add("dragging");
+  row.style.position = "fixed";
+  row.style.width = rect.width + "px";
+  row.style.left = rect.left + "px";
+  row.style.top = rect.top + "px";
+  row.style.margin = "0";
+  row.style.boxSizing = "border-box";
+
+  try { handle.setPointerCapture(e.pointerId); } catch (err) {}
+  handle.addEventListener("pointermove", onSongDragMove);
+  handle.addEventListener("pointerup", onSongDragEnd);
+  handle.addEventListener("pointercancel", onSongDragEnd);
+}
+
+function onSongDragMove(e) {
+  if (!songDrag || e.pointerId !== songDrag.pointerId) return;
+  const { row, placeholder, container, offsetY } = songDrag;
+  songDrag.moved = true;
+  row.style.top = (e.clientY - offsetY) + "px";
+
+  const others = [...container.querySelectorAll(".song-row")].filter(
+    (el) => el !== row && !el.classList.contains("drag-placeholder")
+  );
+  let inserted = false;
+  for (const other of others) {
+    const r = other.getBoundingClientRect();
+    const mid = r.top + r.height / 2;
+    if (e.clientY < mid) {
+      container.insertBefore(placeholder, other);
+      inserted = true;
+      break;
+    }
+  }
+  if (!inserted) container.appendChild(placeholder);
+}
+
+function onSongDragEnd(e) {
+  if (!songDrag || e.pointerId !== songDrag.pointerId) return;
+  const { row, placeholder, container } = songDrag;
+  const handle = e.currentTarget;
+
+  handle.removeEventListener("pointermove", onSongDragMove);
+  handle.removeEventListener("pointerup", onSongDragEnd);
+  handle.removeEventListener("pointercancel", onSongDragEnd);
+  try { handle.releasePointerCapture(e.pointerId); } catch (err) {}
+
+  row.classList.remove("dragging");
+  row.style.position = "";
+  row.style.width = "";
+  row.style.left = "";
+  row.style.top = "";
+  row.style.margin = "";
+  row.style.boxSizing = "";
+  row.style.zIndex = "";
+
+  if (placeholder.parentNode) {
+    container.insertBefore(row, placeholder);
+    placeholder.remove();
+  }
+
+  const ordered = [...container.querySelectorAll(".song-row")]
+    .filter((el) => !el.classList.contains("drag-placeholder"))
+    .map((el) => songs[Number(el.dataset.origIndex)])
+    .filter(Boolean);
+
+  songDrag = null;
+
+  if (ordered.length === songs.length) {
+    const changed = ordered.some((s, i) => s !== songs[i]);
+    if (changed) {
+      songs = ordered;
+      saveSongs(true);
+    }
+  }
+  renderSetlist();
+}
+
 function moveSong(i, dir) {
   const j = i + dir;
   if (j < 0 || j >= songs.length) return;
@@ -1180,6 +1291,14 @@ function openReader(i) {
   loadReaderSong({ autoPlayDelay: 10 });
   showScreen("reader");
 }
+function resetReaderScrollToTop() {
+  const scrollEl = document.getElementById("reader-scroll");
+  scrollPos = 0;
+  if (scrollEl) {
+    scrollEl.scrollTop = 0;
+    updateProgress();
+  }
+}
 function loadReaderSong(opts) {
   const autoPlayDelay = opts && opts.autoPlayDelay != null ? opts.autoPlayDelay : 10;
   cancelSongCountdown();
@@ -1206,9 +1325,7 @@ function loadReaderSong(opts) {
   } else {
     scrollEl.innerHTML = `<div class="empty-hint">No lyrics added yet for this song.<br>Tap the pencil icon above to paste them in.</div>`;
   }
-  scrollEl.scrollTop = 0;
-  scrollPos = 0;
-  updateProgress();
+  resetReaderScrollToTop();
   setPlayIcon(false);
   if (autoPlayDelay > 0) {
     if (settings.listenFirstLine) armSongStart();
@@ -1457,6 +1574,7 @@ function beginPlayback() {
   cancelIntroCountdown();
   hideAnnounceBar();
   clearPlayCountdownLook();
+  resetReaderScrollToTop();
   startScrolling();
   requestWakeLock();
 }
@@ -1469,6 +1587,7 @@ function armSongStart() {
     setPlayIcon(false);
     return;
   }
+  resetReaderScrollToTop();
   songStartArmed = true;
   firstLineHeard = false;
   firstLineTarget = firstLyricCue(song);
@@ -1548,6 +1667,7 @@ function finishSongCountdown() {
   if (target == null || target < 0 || target >= songs.length) return;
   currentIndex = target;
   loadReaderSong({ autoPlayDelay: 10 });
+  resetReaderScrollToTop();
 }
 
 function startSongCountdown(targetIndex) {
@@ -1638,6 +1758,7 @@ function startScrolling() {
   cancelIntroCountdown();
   disarmSongStart();
   hideAnnounceBar();
+  resetReaderScrollToTop();
   isPlaying = true;
   userHoldingScroll = false;
   const btn = document.getElementById("play-btn");
@@ -1647,7 +1768,8 @@ function startScrolling() {
   }
   setPlayIcon(true);
   lastTs = null;
-  scrollPos = scrollEl.scrollTop;
+  scrollPos = 0;
+  scrollEl.scrollTop = 0;
   const song = songs[currentIndex] || {};
   startMetronome(song.tempo);
   if (scrollAnim) cancelAnimationFrame(scrollAnim);
