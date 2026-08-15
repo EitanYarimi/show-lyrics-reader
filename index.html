@@ -682,7 +682,7 @@ const TOKEN_KEY = "showLyricsReaderGithubToken";
 const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
 const GH_REPO = "EitanYarimi/show-lyrics-reader";
 /* Bump APP_VERSION on each release (shown small on the home screen). */
-const APP_VERSION = "1.0.3";
+const APP_VERSION = "1.0.4";
 
 function loadSongs() {
   let stored = null;
@@ -1319,24 +1319,29 @@ function normalizeLyricText(str) {
     .replace(/\s+/g, " ")
     .trim();
 }
-function firstLyricLine(song) {
+function firstLyricCue(song) {
+  // Only the first 3 words of the first lyric line — enough to catch the vocal entry.
   const lines = String((song && song.lyrics) || "").replace(/\r\n/g, "\n").split("\n");
   for (const line of lines) {
-    if (line.trim()) return line.trim();
+    if (!line.trim()) continue;
+    const words = normalizeLyricText(line).split(" ").filter(Boolean);
+    return words.slice(0, 3).join(" ");
   }
   return "";
 }
-function transcriptMatchesFirstLine(transcript, targetLine) {
+function transcriptMatchesFirstLine(transcript, targetCue) {
   const heard = normalizeLyricText(transcript);
-  const target = normalizeLyricText(targetLine);
+  const target = normalizeLyricText(targetCue);
   if (!heard || !target) return false;
-  if (heard.includes(target) || target.includes(heard)) return true;
-  const targetWords = target.split(" ").filter(w => w.length > 2);
+  if (heard.includes(target)) return true;
+  const targetWords = target.split(" ").filter(Boolean);
   if (!targetWords.length) return false;
-  const heardSet = new Set(heard.split(" ").filter(Boolean));
+  const heardWords = heard.split(" ").filter(Boolean);
+  const heardSet = new Set(heardWords);
   let hits = 0;
   targetWords.forEach(w => { if (heardSet.has(w)) hits += 1; });
-  const need = Math.min(3, Math.max(2, Math.ceil(targetWords.length * 0.4)));
+  // Need essentially all cue words (2 of 2, or 2–3 of 3).
+  const need = Math.max(1, targetWords.length - (targetWords.length >= 3 ? 1 : 0));
   return hits >= need;
 }
 
@@ -1386,7 +1391,7 @@ function armSongStart() {
     return;
   }
   songStartArmed = true;
-  firstLineTarget = firstLyricLine(song);
+  firstLineTarget = firstLyricCue(song);
   showAnnounceBar("Listening for first line", song, { listening: true });
   clearPlayCountdownLook();
   setPlayIcon(false);
