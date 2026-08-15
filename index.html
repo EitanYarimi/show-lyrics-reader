@@ -205,9 +205,10 @@
   /* ---------- Reader screen ---------- */
   #reader-topbar { background: rgba(12,9,7,0.94); }
   #reader-scroll {
-    flex: 1; overflow-y: auto; padding: 28px 22px 18vh;
+    flex: 1; overflow-y: auto; padding: 28px 22px 55vh;
     scroll-behavior: auto;
     background: #0c0907;
+    -webkit-overflow-scrolling: touch;
   }
   #reader-scroll .lyrics {
     font-size: var(--font-size); line-height: 1.5; white-space: pre-wrap;
@@ -914,24 +915,36 @@ function nextSong() {
 
 function baseSpeedPxPerSec() {
   const scrollEl = document.getElementById("reader-scroll");
-  const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
-  const durSec = parseDurationToSeconds(songs[currentIndex].duration);
-  if (durSec && durSec > 0 && maxScroll > 0) {
+  const maxScroll = Math.max(0, scrollEl.scrollHeight - scrollEl.clientHeight);
+  const song = songs[currentIndex] || {};
+  let durSec = parseDurationToSeconds(song.duration);
+
+  if (!durSec || durSec <= 0) {
+    const lines = String(song.lyrics || "").split(/\n/).filter(l => l.trim().length).length;
+    const tempo = song.tempo || 120;
+    // Rough live pacing: ~2 beats per lyric line, at least 90s
+    durSec = Math.max(90, (Math.max(lines, 8) * 2 * 60) / tempo);
+  }
+
+  if (maxScroll > 0 && durSec > 0) {
     return maxScroll / durSec;
   }
-  return 28; // default px/sec fallback
+  // Fallback if there's little overflow: keep a visible crawl
+  return Math.max(36, (song.tempo || 120) / 2.5);
 }
 
 function togglePlay() {
   if (isPlaying) { stopScrolling(); } else { startScrolling(); requestWakeLock(); }
 }
 function setPlayIcon(playing) {
-  document.getElementById("play-btn").innerHTML = playing ? "&#10074;&#10074;" : "&#9654;";
+  const btn = document.getElementById("play-btn");
+  if (btn) btn.innerHTML = playing ? "&#10074;&#10074;" : "&#9654;";
 }
 function startScrolling() {
   isPlaying = true;
   setPlayIcon(true);
   lastTs = null;
+  if (scrollAnim) cancelAnimationFrame(scrollAnim);
   scrollAnim = requestAnimationFrame(scrollStep);
 }
 function stopScrolling() {
@@ -944,13 +957,17 @@ function stopScrolling() {
 function scrollStep(ts) {
   if (!isPlaying) return;
   const scrollEl = document.getElementById("reader-scroll");
+  if (!scrollEl) { stopScrolling(); return; }
+
   if (lastTs !== null) {
-    const dt = (ts - lastTs) / 1000;
+    const dt = Math.min(0.05, (ts - lastTs) / 1000); // avoid jumps after tab sleep
     const speed = baseSpeedPxPerSec() * speedMultiplier;
     scrollEl.scrollTop += speed * dt;
     updateProgress();
     const maxScroll = scrollEl.scrollHeight - scrollEl.clientHeight;
-    if (scrollEl.scrollTop >= maxScroll - 2) {
+    if (maxScroll > 0 && scrollEl.scrollTop >= maxScroll - 1) {
+      scrollEl.scrollTop = maxScroll;
+      updateProgress();
       stopScrolling();
       return;
     }
