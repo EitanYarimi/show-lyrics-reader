@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>Red Rock Lyrics</title>
+<title>Show Lyrics</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Oswald:wght@500;600;700&display=swap');
   :root {
@@ -70,35 +70,6 @@
   .screen { display: none; flex-direction: column; height: 100%; }
   .screen.active { display: flex; }
 
-  .hero-banner {
-    flex: 0 0 auto;
-    width: 100%;
-    background: var(--surface);
-    border-bottom: 3px solid var(--accent);
-  }
-  .hero-banner img {
-    display: block;
-    width: 100%;
-    height: auto;
-    aspect-ratio: 1024 / 409;
-    object-fit: contain;
-    object-position: center;
-  }
-  @media (min-width: 1024px) and (orientation: landscape) {
-    .hero-banner {
-      height: clamp(180px, 24vw, 300px);
-      margin: 0;
-      padding: 0;
-    }
-    .hero-banner img {
-      width: 100%;
-      height: 100%;
-      aspect-ratio: unset;
-      object-fit: cover;
-      object-position: top center;
-    }
-  }
-
   /* ---------- Top bars ---------- */
   .topbar {
     display: flex; align-items: center; justify-content: space-between;
@@ -124,15 +95,11 @@
 
   /* ---------- Setlist screen ---------- */
   #screen-setlist.view-home {
-    padding-top: 0;
-  }
-  #screen-setlist.view-home .hero-banner {
-    margin-top: 0;
+    padding-top: calc(10px + env(safe-area-inset-top));
   }
   #screen-setlist.view-home .topbar,
   #screen-setlist.view-home #setlist-items,
   #screen-setlist.view-home .bar-set { display: none; }
-  #screen-setlist.view-set .hero-banner,
   #screen-setlist.view-set #set-picks,
   #screen-setlist.view-set #home-brand,
   #screen-setlist.view-set #home-label,
@@ -148,12 +115,12 @@
   #home-brand {
     flex-shrink: 0;
     text-align: center;
-    padding: 18px 20px 8px;
+    padding: 28px 20px 12px;
   }
   #home-brand .home-brand-title {
     margin: 0;
     font-family: var(--display);
-    font-size: clamp(34px, 8vw, 52px);
+    font-size: clamp(40px, 10vw, 58px);
     font-weight: 700;
     letter-spacing: 2px;
     text-transform: uppercase;
@@ -161,7 +128,7 @@
     line-height: 1.05;
   }
   #home-brand .home-brand-sub {
-    margin: 8px 0 0;
+    margin: 10px 0 0;
     font-family: var(--display);
     font-size: 15px;
     letter-spacing: 2px;
@@ -184,61 +151,61 @@
   #set-picks {
     flex: 1;
     overflow-y: auto;
-    padding: 12px 20px 20px;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-    gap: 16px;
-    align-content: start;
+    padding: 8px 16px 20px;
   }
   #set-picks:empty { display: none; }
-  #set-picks .set-tile {
-    position: relative;
-    aspect-ratio: 1;
+  #set-picks .set-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
     width: 100%;
+    background: var(--card);
     border: 1px solid var(--border);
     border-radius: 4px;
-    overflow: hidden;
+    padding: 16px 14px;
+    margin: 0 0 10px;
     cursor: pointer;
-    background: linear-gradient(160deg, #2a1a12 0%, #120d0a 55%, #3a1212 100%);
-    background-size: cover;
-    background-position: center;
-    display: flex;
-    align-items: flex-end;
     text-align: left;
-    padding: 0;
-    color: #fff8ec;
+    color: inherit;
     font: inherit;
     -webkit-tap-highlight-color: transparent;
   }
-  #set-picks .set-tile:active { opacity: 0.92; transform: scale(0.99); }
-  #set-picks .set-tile-scrim {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(180deg, transparent 35%, rgba(8, 5, 4, 0.88) 100%);
-    pointer-events: none;
+  #set-picks .set-row:active { opacity: 0.88; }
+  #set-picks .set-row-thumb {
+    flex-shrink: 0;
+    width: 52px;
+    height: 52px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: linear-gradient(160deg, #2a1a12 0%, #120d0a 55%, #3a1212 100%);
+    background-size: cover;
+    background-position: center;
   }
-  #set-picks .set-tile-title {
-    position: relative;
-    z-index: 1;
-    width: 100%;
-    padding: 14px 12px;
+  body.light #set-picks .set-row-thumb {
+    background: linear-gradient(160deg, #ebe0d0 0%, #d4c0a4 55%, #c9a070 100%);
+  }
+  #set-picks .set-row-info { flex: 1; min-width: 0; }
+  #set-picks .set-row-title {
     font-family: var(--display);
-    font-size: clamp(16px, 3.8vw, 22px);
+    font-size: 22px;
     font-weight: 700;
     letter-spacing: 1px;
     text-transform: uppercase;
+    color: var(--text);
     line-height: 1.15;
-    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.65);
   }
-  body.light #set-picks .set-tile {
-    background: linear-gradient(160deg, #ebe0d0 0%, #d4c0a4 55%, #c9a070 100%);
-    color: #1c120e;
-  }
-  body.light #set-picks .set-tile-scrim {
-    background: linear-gradient(180deg, transparent 40%, rgba(247, 241, 232, 0.92) 100%);
-  }
-  body.light #set-picks .set-tile-title {
-    text-shadow: none;
+  #set-picks .set-row-action {
+    flex-shrink: 0;
+    font-family: var(--display);
+    font-size: 13px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--btn-on-accent);
+    background: var(--accent);
+    border: none;
+    border-radius: 4px;
+    padding: 12px 14px;
+    pointer-events: none;
   }
   .song-row {
     display: flex; align-items: center; gap: 10px;
@@ -593,18 +560,15 @@
 
   <!-- ================= SETLIST SCREEN ================= -->
   <section id="screen-setlist" class="screen active view-home">
-    <div class="hero-banner">
-      <img src="banner.jpg" alt="Red Rock Southern Rock Tribute">
-    </div>
     <div class="topbar">
       <div>
-        <h1 id="show-title">Red Rock</h1>
+        <h1 id="show-title">Show Lyrics</h1>
         <div class="sub" id="show-sub">Choose a set</div>
       </div>
       <button class="icon-btn" onclick="addSong()" title="Add song">+</button>
     </div>
     <div id="home-brand">
-      <h1 class="home-brand-title">Red Rock Lyrics</h1>
+      <h1 class="home-brand-title">Show Lyrics</h1>
       <p class="home-brand-sub">Choose a set</p>
     </div>
     <div id="home-label">Choose a set</div>
@@ -780,7 +744,7 @@ const TOKEN_KEY = "showLyricsReaderGithubToken";
 const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
 const GH_REPO = "EitanYarimi/show-lyrics-reader";
 /* Bump APP_VERSION on each release (shown small on the home screen). */
-const APP_VERSION = "1.0.12";
+const APP_VERSION = "1.0.13";
 
 function loadSongs() {
   let stored = null;
@@ -1218,7 +1182,7 @@ function showHome() {
   const screen = document.getElementById("screen-setlist");
   screen.classList.add("view-home");
   screen.classList.remove("view-set");
-  document.getElementById("show-title").textContent = "Red Rock";
+  document.getElementById("show-title").textContent = "Show Lyrics";
   document.getElementById("show-sub").textContent = "Choose a set";
   showScreen("setlist");
 }
@@ -1281,21 +1245,22 @@ function renderSetRows(container, sets) {
     const name = set.name || "Untitled set";
     const url = set.url || "";
     const image = set.image || set.cover || "";
-    const tile = document.createElement("button");
-    tile.type = "button";
-    tile.className = "set-tile";
-    tile.setAttribute("aria-label", "Open set " + name);
-    if (image) {
-      const src = resolveJsonUrl(image);
-      tile.style.backgroundImage =
-        "linear-gradient(180deg, transparent 35%, rgba(8,5,4,0.88) 100%), url(\"" + src.replace(/"/g, '\\"') + "\")";
-    }
-    tile.innerHTML = `
-      <span class="set-tile-scrim" aria-hidden="true"></span>
-      <span class="set-tile-title">${escapeHtml(name)}</span>
+    const row = document.createElement("button");
+    row.type = "button";
+    row.className = "set-row";
+    row.setAttribute("aria-label", "Open set " + name);
+    const thumbStyle = image
+      ? ' style="background-image:url(\'' + resolveJsonUrl(image).replace(/'/g, "%27") + '\')"'
+      : "";
+    row.innerHTML = `
+      <span class="set-row-thumb"${thumbStyle} aria-hidden="true"></span>
+      <span class="set-row-info">
+        <span class="set-row-title">${escapeHtml(name)}</span>
+      </span>
+      <span class="set-row-action">Open</span>
     `;
-    tile.addEventListener("click", () => loadJsonFromUrl(url, name));
-    container.appendChild(tile);
+    row.addEventListener("click", () => loadJsonFromUrl(url, name));
+    container.appendChild(row);
   });
 }
 
