@@ -763,8 +763,8 @@
       </div>
       <div class="field">
         <label>Lyrics</label>
-        <textarea id="edit-lyrics" placeholder="Paste the lyrics for this song here. Leave a blank line between verses/choruses. This text stays only on this device."></textarea>
-        <div class="hint">Edits are saved to this set's JSON on GitHub so your band gets the same version.</div>
+        <textarea id="edit-lyrics" placeholder="Paste the lyrics for this song here. Leave a blank line between verses/choruses."></textarea>
+        <div class="hint">Save writes title, artist, tempo, key, duration, lyrics, and set order to this device and to the set JSON on GitHub (when a token is saved).</div>
       </div>
     </div>
     <div class="bottom-actions">
@@ -854,7 +854,7 @@ const TOKEN_KEY = "showLyricsReaderGithubToken";
 const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
 const GH_REPO = "EitanYarimi/show-lyrics-reader";
 /* Bump APP_VERSION on each release (shown small on the home screen). */
-const APP_VERSION = "1.0.28";
+const APP_VERSION = "1.0.29";
 
 function loadSongs() {
   let stored = null;
@@ -877,12 +877,29 @@ function loadSongs() {
 }
 function saveSongs(syncRemote) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(songs));
-  if (syncRemote) persistActiveSet();
+  if (syncRemote) return persistActiveSet();
+  return Promise.resolve(true);
 }
 
 function setSaveStatus(text) {
   const el = document.getElementById("save-status");
   if (el) el.textContent = text || "";
+  const sub = document.getElementById("show-sub");
+  if (sub && document.getElementById("screen-setlist") &&
+      document.getElementById("screen-setlist").classList.contains("view-set") && text) {
+    sub.textContent = text;
+  }
+}
+
+function ensureActiveSetPath() {
+  if (!activeSet) return null;
+  if (activeSet.path) return activeSet.path;
+  const path = repoPathFromUrl(activeSet.url || "");
+  if (path) {
+    activeSet.path = path;
+    try { localStorage.setItem(ACTIVE_SET_KEY, JSON.stringify(activeSet)); } catch (e) {}
+  }
+  return path || null;
 }
 
 function repoPathFromUrl(url) {
@@ -917,7 +934,10 @@ function saveGithubToken() {
     return;
   }
   localStorage.setItem(TOKEN_KEY, value);
-  document.getElementById("token-status").textContent = "Token saved on this device. Edits will write to the JSON.";
+  document.getElementById("token-status").textContent =
+    "Token saved. Song edits, order, and details will sync to the set JSON on GitHub.";
+  // If a set is already open, push current list now.
+  if (activeSet && songs && songs.length) persistActiveSet();
 }
 
 function fillGithubTokenField() {
@@ -928,7 +948,7 @@ function fillGithubTokenField() {
   input.value = token;
   if (status) {
     status.textContent = token
-      ? "Token is saved on this device."
+      ? "Token is saved on this device. Edits sync order + song details to GitHub."
       : "Create a GitHub token with repo access, paste it here once, then Save token.";
   }
   const listen = document.getElementById("listen-first-line");
@@ -939,18 +959,18 @@ function toggleListenFirstLine(on) {
   saveSettings();
 }
 
-async function persistActiveSet() {
-  const path = activeSet && activeSet.path;
+async function persistActiveSet(retries) {
+  const path = ensureActiveSetPath();
   const token = localStorage.getItem(TOKEN_KEY) || "";
   if (!path) {
-    setSaveStatus("Saved on this device. Set up a shared set to write the JSON.");
-    return;
+    setSaveStatus("Saved on device only — open a shared set from Home to sync GitHub.");
+    return false;
   }
   if (!token) {
-    setSaveStatus("Saved on this device. Add a GitHub token in Shared sets to update the JSON.");
-    return;
+    setSaveStatus("Saved on device only — add a GitHub token in Settings to sync.");
+    return false;
   }
-  setSaveStatus("Saving to JSON…");
+  setSaveStatus("Saving to GitHub…");
   try {
     const api = "https://api.github.com/repos/" + GH_REPO + "/contents/" + path;
     const headers = {
@@ -958,11 +978,16 @@ async function persistActiveSet() {
       Authorization: "Bearer " + token,
     };
     const current = await fetch(api, { headers, cache: "no-store" });
+    if (current.status === 401 || current.status === 403) {
+      setSaveStatus("GitHub auth failed — check token has repo access.");
+      return false;
+    }
     if (!current.ok) throw new Error("read " + current.status);
     const meta = await current.json();
+    const payload = JSON.stringify(songs, null, 2);
     const body = JSON.stringify({
-      message: "Update " + path + " from Red Rock reader",
-      content: toBase64(JSON.stringify(songs, null, 2)),
+      message: "Update " + path + " from GigList (order + song details)",
+      content: toBase64(payload),
       sha: meta.sha,
       branch: "main",
     });
@@ -971,14 +996,26 @@ async function persistActiveSet() {
       headers: Object.assign({ "Content-Type": "application/json" }, headers),
       body: body,
     });
-    if (!put.ok) throw new Error("write " + put.status);
-    setSaveStatus("Saved to " + path);
-    const sub = document.getElementById("show-sub");
-    if (sub && document.getElementById("screen-setlist").classList.contains("view-set")) {
-      sub.textContent = "Saved to JSON";
+    if (put.status === 409 && (retries == null || retries > 0)) {
+      return persistActiveSet(retries == null ? 1 : retries - 1);
     }
+    if (put.status === 401 || put.status === 403) {
+      setSaveStatus("GitHub auth failed — check token has repo access.");
+      return false;
+    }
+    if (!put.ok) {
+      let detail = String(put.status);
+      try {
+        const err = await put.json();
+        if (err && err.message) detail = err.message;
+      } catch (e) {}
+      throw new Error(detail);
+    }
+    setSaveStatus("Saved to GitHub · " + path);
+    return true;
   } catch (e) {
-    setSaveStatus("Saved on this device. Couldn't update the GitHub JSON.");
+    setSaveStatus("Saved on device — GitHub sync failed: " + (e && e.message ? e.message : "error"));
+    return false;
   }
 }
 function loadSettings() {
@@ -1054,14 +1091,24 @@ function setSetlistEditMode(on) {
 }
 
 function toggleSetlistEdit() {
+  const wasEditing = setlistEditMode;
   setSetlistEditMode(!setlistEditMode);
+  // Leaving edit mode: push latest order + details to GitHub.
+  if (wasEditing) saveSongs(true);
 }
 
 function renderSetlist() {
   const container = document.getElementById("setlist-items");
   container.innerHTML = "";
   if (document.getElementById("screen-setlist").classList.contains("view-set")) {
-    document.getElementById("show-sub").textContent = songs.length + " song" + (songs.length === 1 ? "" : "s");
+    const sub = document.getElementById("show-sub");
+    if (sub) {
+      const t = sub.textContent || "";
+      // Don't clobber an in-progress / recent GitHub sync status.
+      if (!/Saving|Saved to GitHub|GitHub|device only|auth failed|sync failed/i.test(t)) {
+        sub.textContent = songs.length + " song" + (songs.length === 1 ? "" : "s");
+      }
+    }
   }
   songs.forEach((song, i) => {
     const row = document.createElement("div");
@@ -1238,7 +1285,7 @@ function openEditFromReader() {
   disarmSongStart();
   openEdit(currentIndex);
 }
-function saveSong() {
+async function saveSong() {
   if (editingIndex === null) return;
   const tempoVal = document.getElementById("edit-tempo").value.trim();
   songs[editingIndex] = {
@@ -1249,15 +1296,16 @@ function saveSong() {
     duration: document.getElementById("edit-duration").value.trim(),
     lyrics: document.getElementById("edit-lyrics").value,
   };
-  saveSongs(true);
+  setSaveStatus("Saving…");
+  await saveSongs(true);
   renderSetlist();
   showScreen("setlist");
 }
-function deleteSong() {
+async function deleteSong() {
   if (editingIndex === null) return;
   if (!confirm("Delete this song from the set list?")) return;
   songs.splice(editingIndex, 1);
-  saveSongs(true);
+  await saveSongs(true);
   renderSetlist();
   showScreen("setlist");
 }
