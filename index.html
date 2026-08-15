@@ -264,7 +264,20 @@
     height: 4px; background: var(--border); border-radius: 2px; margin-bottom: 12px; overflow: hidden;
   }
   .progress-fill { height: 100%; background: var(--accent); width: 0%; }
-  .controls-row { display: flex; align-items: center; justify-content: center; gap: 18px; }
+  .controls-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+  }
+  .controls-mid {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    flex: 1;
+  }
   .play-btn {
     width: 58px; height: 58px; border-radius: 50%; border: none; background: var(--accent);
     color: var(--btn-on-accent); font-size: 22px; display: flex; align-items: center; justify-content: center;
@@ -525,11 +538,13 @@
     <div id="reader-controls">
       <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
       <div class="controls-row">
-        <button class="nav-btn" onclick="prevSong()">&#9664;&#9664;</button>
-        <button class="speed-btn" onclick="changeFont(-2)">A&minus;</button>
-        <button class="play-btn" id="play-btn" onclick="togglePlay()">&#9654;</button>
-        <button class="speed-btn" onclick="changeFont(2)">A+</button>
-        <button class="nav-btn" onclick="nextSong()">&#9654;&#9654;</button>
+        <button class="nav-btn" onclick="prevSong()" title="Previous">&#9664;&#9664;</button>
+        <div class="controls-mid">
+          <button class="speed-btn" onclick="changeFont(-2)">A&minus;</button>
+          <button class="play-btn" id="play-btn" onclick="togglePlay()">&#9654;</button>
+          <button class="speed-btn" onclick="changeFont(2)">A+</button>
+        </div>
+        <button class="nav-btn" onclick="nextSong()" title="Next">&#9654;&#9654;</button>
       </div>
       <div class="speed-label" id="speed-label" style="display:none">1.0x</div>
     </div>
