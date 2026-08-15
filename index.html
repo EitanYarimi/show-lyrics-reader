@@ -562,10 +562,10 @@
       </div>
       <div class="hint" id="token-status" style="margin-bottom:16px;"></div>
       <div class="field">
-        <label>Start scroll when first line is heard</label>
+        <label>Listen for first line (highlight only)</label>
         <label class="toggle-row">
           <input id="listen-first-line" type="checkbox" onchange="toggleListenFirstLine(this.checked)">
-          <span>Listen for first lyric line right away (iPad near monitor). Tap play for a 3s start. If mic misses, auto-starts after ~25s. Off = normal 10s autoplay.</span>
+          <span>Listen right away and color the first lyric line when heard. Scroll starts only when you tap play (3s countdown). Off = normal 10s autoplay.</span>
         </label>
       </div>
       <div class="bottom-actions" style="padding:0 0 16px;">
@@ -692,7 +692,7 @@ const TOKEN_KEY = "showLyricsReaderGithubToken";
 const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
 const GH_REPO = "EitanYarimi/show-lyrics-reader";
 /* Bump APP_VERSION on each release (shown small on the home screen). */
-const APP_VERSION = "1.0.8";
+const APP_VERSION = "1.0.9";
 
 function loadSongs() {
   let stored = null;
@@ -1320,11 +1320,10 @@ function scheduleAutoPlay(seconds) {
   }, 1000);
 }
 
-const LISTEN_FALLBACK_MS = 25000;
 let songStartArmed = false;
-let listenFallbackTimer = null;
 let speechRecognition = null;
 let firstLineTarget = "";
+let firstLineHeard = false;
 let manualStartTimer = null;
 let manualStartLeft = 0;
 
@@ -1399,18 +1398,19 @@ function transcriptMatchesFirstLine(transcript, targetCue) {
   return hits >= need;
 }
 
-function disarmSongStart() {
-  songStartArmed = false;
-  firstLineTarget = "";
-  cancelManualStartCountdown();
-  if (listenFallbackTimer) {
-    clearTimeout(listenFallbackTimer);
-    listenFallbackTimer = null;
-  }
+function stopFirstLineListener() {
   if (speechRecognition) {
     try { speechRecognition.onresult = null; speechRecognition.onerror = null; speechRecognition.onend = null; speechRecognition.stop(); } catch (e) {}
     speechRecognition = null;
   }
+}
+
+function disarmSongStart() {
+  songStartArmed = false;
+  firstLineTarget = "";
+  firstLineHeard = false;
+  cancelManualStartCountdown();
+  stopFirstLineListener();
 }
 
 function highlightFirstLineHeard() {
@@ -1418,22 +1418,13 @@ function highlightFirstLineHeard() {
   if (el) el.classList.add("heard");
 }
 
-function beginPlayback(opts) {
+function beginPlayback() {
   if (isPlaying) return;
-  const fromMic = opts && opts.fromMic;
   cancelManualStartCountdown();
   disarmSongStart();
   cancelIntroCountdown();
   hideAnnounceBar();
   clearPlayCountdownLook();
-  if (fromMic) {
-    highlightFirstLineHeard();
-    setTimeout(() => {
-      startScrolling();
-      requestWakeLock();
-    }, 450);
-    return;
-  }
   startScrolling();
   requestWakeLock();
 }
@@ -1447,6 +1438,7 @@ function armSongStart() {
     return;
   }
   songStartArmed = true;
+  firstLineHeard = false;
   firstLineTarget = firstLyricCue(song);
   showAnnounceBar("Listening for first line", song, { listening: true });
   clearPlayCountdownLook();
@@ -1456,13 +1448,23 @@ function armSongStart() {
     btn.classList.add("listening");
     btn.innerHTML = "&#127908;";
   }
-
-  listenFallbackTimer = setTimeout(() => {
-    if (!songStartArmed || isPlaying) return;
-    beginPlayback();
-  }, LISTEN_FALLBACK_MS);
-
   startFirstLineListener();
+}
+
+function onFirstLineHeard() {
+  if (!songStartArmed || isPlaying || firstLineHeard) return;
+  firstLineHeard = true;
+  highlightFirstLineHeard();
+  stopFirstLineListener();
+  const song = songs[currentIndex] || {};
+  showAnnounceBar("Heard — tap play to start", song, { listening: true });
+  const bar = document.getElementById("announce-bar");
+  if (bar) bar.classList.remove("listening"); // stop mic blink; still waiting for play
+  const btn = document.getElementById("play-btn");
+  if (btn && manualStartLeft <= 0) {
+    btn.classList.remove("listening");
+    btn.innerHTML = "&#9654;";
+  }
 }
 
 function startFirstLineListener() {
@@ -1476,24 +1478,22 @@ function startFirstLineListener() {
     rec.lang = "en-US";
     rec.maxAlternatives = 3;
     rec.onresult = (event) => {
-      if (!songStartArmed || isPlaying) return;
+      if (!songStartArmed || isPlaying || firstLineHeard) return;
       let chunk = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
         chunk += " " + (event.results[i][0] && event.results[i][0].transcript || "");
       }
-      if (transcriptMatchesFirstLine(chunk, firstLineTarget)) {
-        beginPlayback({ fromMic: true });
-      }
+      if (transcriptMatchesFirstLine(chunk, firstLineTarget)) onFirstLineHeard();
     };
-    rec.onerror = () => { /* fallback timer still covers miss */ };
+    rec.onerror = () => { /* stay armed until play */ };
     rec.onend = () => {
-      if (songStartArmed && !isPlaying && speechRecognition === rec) {
+      if (songStartArmed && !isPlaying && !firstLineHeard && speechRecognition === rec) {
         try { rec.start(); } catch (e) {}
       }
     };
     rec.start();
   } catch (e) {
-    /* Mic/speech unavailable — fallback timer will auto-start. */
+    /* Mic/speech unavailable — user starts with play. */
   }
 }
 
