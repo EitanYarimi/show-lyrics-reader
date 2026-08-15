@@ -462,7 +462,37 @@
     background: var(--card); border: 1px solid var(--border); color: var(--text);
     border-radius: 8px; padding: 10px 12px; font-size: 16px; cursor: pointer; min-width: 44px;
   }
-  .speed-label { font-size: 12px; color: var(--muted); min-width: 58px; text-align: center; }
+  .pace-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 10px;
+  }
+  .pace-btn {
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 10px 18px;
+    min-height: 44px;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: var(--display);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+    min-width: 88px;
+  }
+  .pace-btn:active { opacity: 0.85; }
+  .speed-label {
+    font-size: 15px;
+    font-weight: 700;
+    font-family: var(--display);
+    color: var(--text);
+    min-width: 52px;
+    text-align: center;
+  }
   .controls-row2 { display: flex; justify-content: center; gap: 18px; margin-top: 10px; font-size: 12px; color: var(--muted); }
   .controls-row2 span { display: flex; align-items: center; gap: 4px; }
 
@@ -788,7 +818,11 @@
         </div>
         <button class="nav-btn" onclick="nextSong()" title="Next">&#9654;&#9654;</button>
       </div>
-      <div class="speed-label" id="speed-label" style="display:none">1.0x</div>
+      <div class="pace-row">
+        <button type="button" class="pace-btn" onclick="changeSpeed(-0.2)" title="Slower scroll">Slow</button>
+        <div class="speed-label" id="speed-label">1.0x</div>
+        <button type="button" class="pace-btn" onclick="changeSpeed(0.2)" title="Faster scroll">Fast</button>
+      </div>
     </div>
   </section>
 
@@ -822,7 +856,7 @@ const TOKEN_KEY = "showLyricsReaderGithubToken";
 const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
 const GH_REPO = "EitanYarimi/show-lyrics-reader";
 /* Bump APP_VERSION on each release (shown small on the home screen). */
-const APP_VERSION = "1.0.26";
+const APP_VERSION = "1.0.27";
 
 function loadSongs() {
   let stored = null;
@@ -1393,15 +1427,59 @@ let speedMultiplier = 1.0;
 let lastTs = null;
 let userHoldingScroll = false;
 let scrollPos = 0;
+let activeScrollPxPerSec = 0;
 
 function parseDurationToSeconds(str) {
-  if (!str) return null;
-  const parts = String(str).trim().split(":").map(p => parseInt(p, 10));
-  if (!parts.length || parts.some(isNaN)) return null;
+  if (str == null || str === "") return null;
+  if (typeof str === "number" && isFinite(str) && str > 0) return str;
+  const raw = String(str).trim();
+  if (!raw) return null;
+  // Plain seconds, e.g. "270"
+  if (/^\d+(\.\d+)?$/.test(raw)) {
+    const n = parseFloat(raw);
+    return n > 0 ? n : null;
+  }
+  const parts = raw.split(":").map((p) => parseInt(p, 10));
+  if (!parts.length || parts.some((p) => isNaN(p))) return null;
   if (parts.length === 2) return parts[0] * 60 + parts[1];
   if (parts.length === 1) return parts[0];
   if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
   return null;
+}
+
+/** Pixels to scroll so lyrics travel from mid-screen start to mid-screen end. */
+function lyricReadingDistance(scrollEl) {
+  const maxScroll = Math.max(0, scrollEl.scrollHeight - scrollEl.clientHeight);
+  const lines = scrollEl.querySelectorAll(".lyric-line");
+  if (!lines.length) return maxScroll;
+  const first = lines[0];
+  const last = lines[lines.length - 1];
+  const span = Math.max(0, last.offsetTop - first.offsetTop);
+  return Math.min(maxScroll, Math.max(1, span));
+}
+
+function scrollSpeedPxPerSec(song, scrollEl) {
+  const distance = lyricReadingDistance(scrollEl);
+  if (distance <= 0) return 0;
+
+  // Duration is the source of truth when set — fit the lyric block to the song length.
+  const durSec = parseDurationToSeconds(song && song.duration);
+  if (durSec && durSec > 0) {
+    return Math.max(1, distance / durSec);
+  }
+
+  // No duration: slower BPM fallback (8 beats ≈ 2 bars per lyric line).
+  const tempo = Number(song && song.tempo) || 120;
+  const beatSec = 60 / Math.max(1, tempo);
+  const lines = scrollEl.querySelectorAll(".lyric-line");
+  let totalBeats = 0;
+  lines.forEach((el) => {
+    const t = String(el.textContent || "").replace(/\u00a0/g, " ").trim();
+    totalBeats += t ? 8 : 4;
+  });
+  if (totalBeats < 1) totalBeats = 8;
+  const totalSec = Math.max(90, totalBeats * beatSec); // never shorter than 1.5 min without duration
+  return Math.max(1, distance / totalSec);
 }
 
 function openReader(i) {
@@ -1821,38 +1899,6 @@ function nextSong() {
   goToSong(currentIndex + 1);
 }
 
-function scrollSpeedPxPerSec(song, scrollEl) {
-  const maxScroll = Math.max(0, scrollEl.scrollHeight - scrollEl.clientHeight);
-  if (maxScroll <= 0) return 0;
-
-  const tempo = Number(song.tempo) || 120;
-  const beatSec = 60 / Math.max(1, tempo);
-  const lines = scrollEl.querySelectorAll(".lyric-line");
-
-  // Content lines: 4 beats (one bar); blank separators: 2 beats.
-  let totalBeats = 0;
-  lines.forEach((el) => {
-    const t = String(el.textContent || "").replace(/\u00a0/g, " ").trim();
-    totalBeats += t ? 4 : 2;
-  });
-  if (totalBeats < 1) totalBeats = 4;
-
-  // BPM-based length; if duration is set, use it so the lyric block fits the song.
-  let totalSec = totalBeats * beatSec;
-  const durSec = parseDurationToSeconds(song.duration);
-  if (durSec && durSec > 0) totalSec = durSec;
-
-  // Scroll until the last lyric sits near mid-viewport (matches start position).
-  let distance = maxScroll;
-  if (lines.length) {
-    const last = lines[lines.length - 1];
-    const target = Math.max(0, last.offsetTop - scrollEl.clientHeight * 0.5);
-    distance = Math.min(maxScroll, Math.max(1, target));
-  }
-
-  return Math.max(2, distance / totalSec);
-}
-
 function togglePlay() {
   // During get-ready / next-song countdown: cancel.
   if (isCountdownActive()) {
@@ -1910,12 +1956,15 @@ function startScrolling() {
   scrollPos = 0;
   scrollEl.scrollTop = 0;
   const song = songs[currentIndex] || {};
+  // Lock base speed after layout (duration when set; BPM fallback otherwise).
+  activeScrollPxPerSec = scrollSpeedPxPerSec(song, scrollEl);
   startMetronome(song.tempo);
   if (scrollAnim) cancelAnimationFrame(scrollAnim);
   scrollAnim = requestAnimationFrame(scrollStep);
 }
 function stopScrolling() {
   isPlaying = false;
+  activeScrollPxPerSec = 0;
   const btn = document.getElementById("play-btn");
   if (btn) {
     btn.classList.remove("counting");
@@ -1951,7 +2000,10 @@ function scrollStep(ts) {
   }
 
   if (dt > 0) {
-    scrollPos = Math.min(maxScroll, scrollPos + scrollSpeedPxPerSec(song, scrollEl) * speedMultiplier * dt);
+    const base = activeScrollPxPerSec > 0
+      ? activeScrollPxPerSec
+      : scrollSpeedPxPerSec(song, scrollEl);
+    scrollPos = Math.min(maxScroll, scrollPos + base * speedMultiplier * dt);
     scrollEl.scrollTop = scrollPos;
     updateProgress();
     if (scrollPos >= maxScroll - 0.5) {
@@ -1979,7 +2031,8 @@ function scrollNudge(dir) {
 }
 function changeSpeed(delta) {
   speedMultiplier = Math.max(0.2, Math.min(3.0, +(speedMultiplier + delta).toFixed(1)));
-  document.getElementById("speed-label").textContent = speedMultiplier.toFixed(1) + "x";
+  const label = document.getElementById("speed-label");
+  if (label) label.textContent = speedMultiplier.toFixed(1) + "x";
 }
 function onReaderTap(e) {
   /* Keep play running; use the play button to pause. Manual scroll continues from here. */
@@ -2038,8 +2091,8 @@ document.addEventListener("keydown", (e) => {
   if (e.code === "Space") { e.preventDefault(); togglePlay(); }
   else if (e.code === "ArrowRight" || e.code === "PageDown") { nextSong(); }
   else if (e.code === "ArrowLeft" || e.code === "PageUp") { prevSong(); }
-  else if (e.code === "ArrowUp") { changeSpeed(0.1); }
-  else if (e.code === "ArrowDown") { changeSpeed(-0.1); }
+  else if (e.code === "ArrowUp") { changeSpeed(0.2); }
+  else if (e.code === "ArrowDown") { changeSpeed(-0.2); }
 });
 
 /* ============================================================
