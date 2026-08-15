@@ -399,6 +399,26 @@
     letter-spacing: 2px;
     text-transform: uppercase;
     color: rgba(255, 248, 236, 0.75);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  #announce-mic {
+    display: none;
+    width: 18px;
+    height: 18px;
+    color: #fff8ec;
+    animation: micBlink 0.7s ease-in-out infinite;
+  }
+  #announce-bar.listening #announce-mic { display: inline-block; }
+  @keyframes micBlink {
+    0%, 100% { opacity: 1; transform: scale(1); filter: drop-shadow(0 0 0 transparent); }
+    50% { opacity: 0.35; transform: scale(1.12); filter: drop-shadow(0 0 8px rgba(255, 248, 236, 0.8)); }
+  }
+  .play-btn.listening {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent2) 45%, transparent);
+    animation: micBlink 0.7s ease-in-out infinite;
+    font-size: 20px;
   }
   #announce-bar .announce-title {
     font-family: var(--display);
@@ -437,9 +457,6 @@
   }
   body.light .play-btn.counting {
     background: #a11616;
-  }
-  .play-btn.listening {
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent2) 45%, transparent);
   }
   #reader-meta {
     display: none;
@@ -610,7 +627,12 @@
       <button class="icon-btn" onclick="openEditFromReader()" title="Edit">&#9998;</button>
     </div>
     <div id="announce-bar" aria-live="polite">
-      <div class="announce-label" id="announce-label">Starting</div>
+      <div class="announce-label">
+        <svg id="announce-mic" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path fill="currentColor" d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/>
+        </svg>
+        <span id="announce-label">Starting</span>
+      </div>
       <div class="announce-title" id="announce-title"></div>
       <div class="announce-artist" id="announce-artist"></div>
     </div>
@@ -660,7 +682,7 @@ const TOKEN_KEY = "showLyricsReaderGithubToken";
 const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
 const GH_REPO = "EitanYarimi/show-lyrics-reader";
 /* Bump APP_VERSION on each release (shown small on the home screen). */
-const APP_VERSION = "1.0.2";
+const APP_VERSION = "1.0.3";
 
 function loadSongs() {
   let stored = null;
@@ -1208,18 +1230,22 @@ let songCountdownTarget = null;
 let introTimer = null;
 let introLeft = 0;
 
-function showAnnounceBar(label, song) {
+function showAnnounceBar(label, song, opts) {
   const bar = document.getElementById("announce-bar");
   document.getElementById("announce-label").textContent = label || "";
   document.getElementById("announce-title").textContent = (song && song.title) || "Untitled";
   document.getElementById("announce-artist").textContent = (song && song.artist) || "";
+  bar.classList.toggle("listening", !!(opts && opts.listening));
   bar.classList.add("open");
   const header = document.getElementById("song-header");
   if (header) header.style.visibility = "hidden";
 }
 function hideAnnounceBar() {
   const bar = document.getElementById("announce-bar");
-  if (bar) bar.classList.remove("open");
+  if (bar) {
+    bar.classList.remove("open");
+    bar.classList.remove("listening");
+  }
   const header = document.getElementById("song-header");
   if (header) header.style.visibility = "";
 }
@@ -1361,11 +1387,14 @@ function armSongStart() {
   }
   songStartArmed = true;
   firstLineTarget = firstLyricLine(song);
-  showAnnounceBar("Listening for first line", song);
+  showAnnounceBar("Listening for first line", song, { listening: true });
   clearPlayCountdownLook();
   setPlayIcon(false);
   const btn = document.getElementById("play-btn");
-  if (btn) btn.classList.add("listening");
+  if (btn) {
+    btn.classList.add("listening");
+    btn.innerHTML = "&#127908;";
+  }
 
   listenFallbackTimer = setTimeout(() => {
     if (!songStartArmed || isPlaying) return;
