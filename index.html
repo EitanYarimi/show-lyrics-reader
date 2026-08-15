@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>GigSync</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Oswald:wght@500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Oswald:wght@500;600;700&family=Syne:wght@700;800&display=swap');
   :root {
     --bg: #120d0a;
     --bg-alt: #1c1410;
@@ -31,6 +31,7 @@
     --banner: url("banner.jpg");
     --ui: "Atkinson Hyperlegible", "Trebuchet MS", sans-serif;
     --display: Oswald, sans-serif;
+    --brand: "Syne", Oswald, sans-serif;
   }
   body.light {
     --bg: #f7f1e8;
@@ -115,20 +116,48 @@
   #home-brand {
     flex-shrink: 0;
     text-align: center;
-    padding: 28px 20px 12px;
+    padding: 32px 20px 14px;
   }
   #home-brand .home-brand-title {
     margin: 0;
-    font-family: var(--display);
-    font-size: clamp(40px, 10vw, 58px);
-    font-weight: 700;
-    letter-spacing: 2px;
+    line-height: 1;
+  }
+  #home-brand .brand-wordmark {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.1em;
+    font-family: var(--brand);
+    font-size: clamp(46px, 11.5vw, 72px);
+    font-weight: 800;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
+    line-height: 1;
     color: var(--text);
-    line-height: 1.05;
+  }
+  #home-brand .brand-gig {
+    letter-spacing: 0.08em;
+  }
+  #home-brand .brand-sync {
+    letter-spacing: 0.1em;
+    color: var(--accent2);
+  }
+  #home-brand .brand-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 0.42em;
+    height: 0.42em;
+    flex-shrink: 0;
+    color: var(--accent);
+    transform: translateY(0.02em);
+  }
+  #home-brand .brand-mark svg {
+    width: 100%;
+    height: 100%;
+    display: block;
   }
   #home-brand .home-brand-sub {
-    margin: 10px 0 0;
+    margin: 12px 0 0;
     font-family: var(--display);
     font-size: 14px;
     letter-spacing: 1.5px;
@@ -581,7 +610,20 @@
       <button class="icon-btn" onclick="addSong()" title="Add song">+</button>
     </div>
     <div id="home-brand">
-      <h1 class="home-brand-title">GigSync</h1>
+      <h1 class="home-brand-title">
+        <span class="brand-wordmark" aria-label="GigSync">
+          <span class="brand-gig" aria-hidden="true">Gig</span>
+          <span class="brand-mark" aria-hidden="true" title="sync">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M7.5 8.2a5.2 5.2 0 0 1 7.4-1.1" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+              <path d="M16.5 15.8a5.2 5.2 0 0 1-7.4 1.1" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+              <path d="M15.2 5.6l1.1 2.8 2.8.2" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M8.8 18.4l-1.1-2.8-2.8-.2" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </span>
+          <span class="brand-sync" aria-hidden="true">Sync</span>
+        </span>
+      </h1>
       <p class="home-brand-sub">Never miss a beat</p>
       <p class="home-brand-hint">Choose a set</p>
     </div>
@@ -758,7 +800,7 @@ const TOKEN_KEY = "showLyricsReaderGithubToken";
 const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
 const GH_REPO = "EitanYarimi/show-lyrics-reader";
 /* Bump APP_VERSION on each release (shown small on the home screen). */
-const APP_VERSION = "1.0.17";
+const APP_VERSION = "1.0.18";
 
 function loadSongs() {
   let stored = null;
