@@ -338,6 +338,30 @@
     max-width: 42%;
   }
   #song-header .a:empty { display: none; }
+  #song-header.title-flash .t {
+    color: var(--accent);
+    text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 55%, transparent);
+    animation: titlePulse 0.7s ease-in-out infinite;
+  }
+  #song-header.title-flash .a {
+    color: var(--accent2);
+    animation: titlePulse 0.7s ease-in-out infinite;
+  }
+  @keyframes titlePulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.72; transform: scale(1.03); }
+  }
+  .play-btn.counting {
+    font-family: var(--display);
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 0;
+    background: #c62828;
+    box-shadow: 0 0 0 3px rgba(198, 40, 40, 0.35), 0 0 18px 4px rgba(139, 28, 28, 0.45);
+  }
+  body.light .play-btn.counting {
+    background: #a11616;
+  }
   #reader-tempo-badge {
     display: none;
     align-items: center;
@@ -358,62 +382,6 @@
   }
   #reader-tempo-badge .dot {
     width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0;
-  }
-
-  #song-countdown {
-    display: none;
-    position: absolute;
-    inset: 0;
-    z-index: 40;
-    background: var(--overlay);
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    text-align: center;
-    padding: 24px;
-  }
-  #song-countdown.open { display: flex; }
-  #song-countdown .cd-label {
-    font-family: var(--display);
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    font-size: 14px;
-    color: var(--muted);
-  }
-  #song-countdown .cd-title {
-    font-family: var(--display);
-    font-size: clamp(28px, 5vw, 42px);
-    font-weight: 700;
-    letter-spacing: 1px;
-    color: var(--text);
-    max-width: 90vw;
-  }
-  #song-countdown .cd-artist {
-    font-size: 16px;
-    color: var(--muted);
-    margin-bottom: 8px;
-  }
-  #song-countdown .cd-number {
-    font-family: var(--display);
-    font-size: clamp(72px, 18vw, 120px);
-    font-weight: 700;
-    line-height: 1;
-    color: var(--accent);
-    text-shadow: 0 0 40px rgba(139, 28, 28, 0.45);
-  }
-  #song-countdown .cd-skip {
-    margin-top: 18px;
-    background: transparent;
-    border: 1px solid var(--border);
-    color: var(--muted);
-    border-radius: 4px;
-    padding: 10px 18px;
-    font-family: var(--display);
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    font-size: 13px;
-    cursor: pointer;
   }
 
   ::-webkit-scrollbar { display: none; }
@@ -547,13 +515,6 @@
         <button class="nav-btn" onclick="nextSong()" title="Next">&#9654;&#9654;</button>
       </div>
       <div class="speed-label" id="speed-label" style="display:none">1.0x</div>
-    </div>
-    <div id="song-countdown" aria-live="polite">
-      <div class="cd-label" id="cd-label">Up next</div>
-      <div class="cd-title" id="cd-title"></div>
-      <div class="cd-artist" id="cd-artist"></div>
-      <div class="cd-number" id="cd-number">5</div>
-      <button class="cd-skip" type="button" onclick="cancelSongCountdown()">Cancel</button>
     </div>
   </section>
 
@@ -824,6 +785,7 @@ function openEdit(i) {
 }
 function openEditFromReader() {
   cancelSongCountdown();
+  cancelIntroCountdown();
   openEdit(currentIndex);
 }
 function saveSong() {
@@ -1026,12 +988,15 @@ function parseDurationToSeconds(str) {
 
 function openReader(i) {
   currentIndex = i;
-  loadReaderSong();
+  loadReaderSong({ autoPlayDelay: 10 });
   showScreen("reader");
 }
-function loadReaderSong() {
+function loadReaderSong(opts) {
+  const autoPlayDelay = opts && opts.autoPlayDelay != null ? opts.autoPlayDelay : 10;
+  cancelSongCountdown();
+  cancelIntroCountdown();
   stopScrolling();
-  const s = songs[currentIndex];
+  const s = songs[currentIndex] || {};
   document.getElementById("reader-title").textContent = s.title || "Untitled";
   document.getElementById("reader-artist").textContent = s.artist || "";
   updateTempoBadge(s.tempo);
@@ -1043,11 +1008,14 @@ function loadReaderSong() {
     scrollEl.innerHTML = `<div class="empty-hint">No lyrics added yet for this song.<br>Tap the pencil icon above to paste them in.</div>`;
   }
   scrollEl.scrollTop = 0;
+  scrollPos = 0;
   updateProgress();
   setPlayIcon(false);
+  if (autoPlayDelay > 0) scheduleAutoPlay(autoPlayDelay);
 }
 function stopAndLeaveReader() {
   cancelSongCountdown();
+  cancelIntroCountdown();
   stopScrolling();
   stopMetronome();
   releaseWakeLock();
@@ -1073,7 +1041,7 @@ function startMetronome(tempo) {
   stopMetronome();
   updateTempoBadge(tempo);
   const playBtn = document.getElementById("play-btn");
-  if (!tempo || !playBtn) return;
+  if (!tempo || !playBtn || playBtn.classList.contains("counting")) return;
   const halfBeatMs = 30000 / tempo;
   playBtn.classList.add("lit");
   metronomeTimer = setInterval(() => {
@@ -1083,11 +1051,66 @@ function startMetronome(tempo) {
 function stopMetronome() {
   if (metronomeTimer) { clearInterval(metronomeTimer); metronomeTimer = null; }
   const playBtn = document.getElementById("play-btn");
-  if (playBtn) playBtn.classList.remove("lit");
+  if (playBtn && !playBtn.classList.contains("counting")) playBtn.classList.remove("lit");
 }
+
 let songCountdownTimer = null;
 let songCountdownLeft = 0;
 let songCountdownTarget = null;
+let introTimer = null;
+let introLeft = 0;
+
+function setTitleFlash(on) {
+  const header = document.getElementById("song-header");
+  if (header) header.classList.toggle("title-flash", !!on);
+}
+function setPlayCountdownNumber(n) {
+  const btn = document.getElementById("play-btn");
+  if (!btn) return;
+  btn.classList.add("counting");
+  btn.classList.remove("lit");
+  btn.textContent = String(n);
+}
+function clearPlayCountdownLook() {
+  const btn = document.getElementById("play-btn");
+  if (!btn) return;
+  btn.classList.remove("counting");
+  if (!isPlaying) setPlayIcon(false);
+}
+
+function cancelIntroCountdown() {
+  if (introTimer) {
+    clearInterval(introTimer);
+    introTimer = null;
+  }
+  introLeft = 0;
+  if (songCountdownTarget == null) {
+    setTitleFlash(false);
+    clearPlayCountdownLook();
+  }
+}
+
+function scheduleAutoPlay(seconds) {
+  cancelIntroCountdown();
+  const scrollEl = document.getElementById("reader-scroll");
+  if (!scrollEl || !scrollEl.querySelector(".lyrics")) {
+    setPlayIcon(false);
+    return;
+  }
+  introLeft = seconds;
+  setTitleFlash(true);
+  setPlayCountdownNumber(introLeft);
+  introTimer = setInterval(() => {
+    introLeft -= 1;
+    if (introLeft <= 0) {
+      cancelIntroCountdown();
+      startScrolling();
+      requestWakeLock();
+      return;
+    }
+    setPlayCountdownNumber(introLeft);
+  }, 1000);
+}
 
 function cancelSongCountdown() {
   if (songCountdownTimer) {
@@ -1096,8 +1119,10 @@ function cancelSongCountdown() {
   }
   songCountdownLeft = 0;
   songCountdownTarget = null;
-  const el = document.getElementById("song-countdown");
-  if (el) el.classList.remove("open");
+  if (introLeft <= 0) {
+    setTitleFlash(false);
+    clearPlayCountdownLook();
+  }
 }
 
 function finishSongCountdown() {
@@ -1105,36 +1130,37 @@ function finishSongCountdown() {
   cancelSongCountdown();
   if (target == null || target < 0 || target >= songs.length) return;
   currentIndex = target;
-  loadReaderSong();
+  loadReaderSong({ autoPlayDelay: 10 });
 }
 
-function startSongCountdown(targetIndex, label) {
+function startSongCountdown(targetIndex) {
   if (targetIndex < 0 || targetIndex >= songs.length || targetIndex === currentIndex) return;
   stopScrolling();
+  cancelIntroCountdown();
   cancelSongCountdown();
   const next = songs[targetIndex] || {};
   songCountdownTarget = targetIndex;
   songCountdownLeft = 5;
-  document.getElementById("cd-label").textContent = label || "Up next";
-  document.getElementById("cd-title").textContent = next.title || "Untitled";
-  document.getElementById("cd-artist").textContent = next.artist || "";
-  document.getElementById("cd-number").textContent = String(songCountdownLeft);
-  document.getElementById("song-countdown").classList.add("open");
+  document.getElementById("reader-title").textContent = next.title || "Untitled";
+  document.getElementById("reader-artist").textContent = next.artist || "";
+  updateTempoBadge(next.tempo);
+  setTitleFlash(true);
+  setPlayCountdownNumber(songCountdownLeft);
   songCountdownTimer = setInterval(() => {
     songCountdownLeft -= 1;
     if (songCountdownLeft <= 0) {
       finishSongCountdown();
       return;
     }
-    document.getElementById("cd-number").textContent = String(songCountdownLeft);
+    setPlayCountdownNumber(songCountdownLeft);
   }, 1000);
 }
 
 function prevSong() {
-  if (currentIndex > 0) startSongCountdown(currentIndex - 1, "Previous");
+  if (currentIndex > 0) startSongCountdown(currentIndex - 1);
 }
 function nextSong() {
-  if (currentIndex < songs.length - 1) startSongCountdown(currentIndex + 1, "Up next");
+  if (currentIndex < songs.length - 1) startSongCountdown(currentIndex + 1);
 }
 
 function scrollSpeedPxPerSec(song, scrollEl) {
@@ -1143,22 +1169,41 @@ function scrollSpeedPxPerSec(song, scrollEl) {
   if (durSec && durSec > 0 && maxScroll > 0) return Math.max(8, maxScroll / durSec);
   const tempo = Number(song.tempo) || 120;
   const lineH = (settings.fontSize || 42) * 1.45;
-  // About one lyric line per beat — readable on stage.
   return Math.max(12, (tempo / 60) * lineH);
 }
 
 function togglePlay() {
+  if (songCountdownTarget != null) {
+    // Skip ahead to the pending song and start its intro, or play now.
+    const target = songCountdownTarget;
+    cancelSongCountdown();
+    currentIndex = target;
+    loadReaderSong({ autoPlayDelay: 0 });
+    startScrolling();
+    requestWakeLock();
+    return;
+  }
+  if (introLeft > 0) {
+    cancelIntroCountdown();
+    startScrolling();
+    requestWakeLock();
+    return;
+  }
   if (isPlaying) { stopScrolling(); } else { startScrolling(); requestWakeLock(); }
 }
 function setPlayIcon(playing) {
   const btn = document.getElementById("play-btn");
-  if (btn) btn.innerHTML = playing ? "&#10074;&#10074;" : "&#9654;";
+  if (!btn || btn.classList.contains("counting")) return;
+  btn.innerHTML = playing ? "&#10074;&#10074;" : "&#9654;";
 }
 function startScrolling() {
   const scrollEl = document.getElementById("reader-scroll");
   if (!scrollEl || !scrollEl.querySelector(".lyrics")) return;
+  cancelIntroCountdown();
   isPlaying = true;
   userHoldingScroll = false;
+  const btn = document.getElementById("play-btn");
+  if (btn) btn.classList.remove("counting");
   setPlayIcon(true);
   lastTs = null;
   scrollPos = scrollEl.scrollTop;
@@ -1169,6 +1214,8 @@ function startScrolling() {
 }
 function stopScrolling() {
   isPlaying = false;
+  const btn = document.getElementById("play-btn");
+  if (btn) btn.classList.remove("counting");
   setPlayIcon(false);
   stopMetronome();
   if (scrollAnim) cancelAnimationFrame(scrollAnim);
