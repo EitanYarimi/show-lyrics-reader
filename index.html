@@ -394,7 +394,6 @@
     letter-spacing: 0;
     background: #c62828;
     box-shadow: 0 0 0 3px rgba(198, 40, 40, 0.35), 0 0 18px 4px rgba(139, 28, 28, 0.45);
-    pointer-events: none;
   }
   body.light .play-btn.counting {
     background: #a11616;
@@ -1269,8 +1268,19 @@ function scrollSpeedPxPerSec(song, scrollEl) {
 }
 
 function togglePlay() {
-  // Countdown is display-only — tapping it must not stop or skip.
-  if (isCountdownActive()) return;
+  // Tap during countdown cancels auto-start / auto-advance.
+  if (isCountdownActive()) {
+    cancelSongCountdown();
+    cancelIntroCountdown();
+    const current = songs[currentIndex] || {};
+    document.getElementById("reader-title").textContent = current.title || "Untitled";
+    document.getElementById("reader-artist").textContent = current.artist || "";
+    updateSongMetaBadges(current);
+    hideAnnounceBar();
+    clearPlayCountdownLook();
+    setPlayIcon(false);
+    return;
+  }
   if (isPlaying) { stopScrolling(); } else { startScrolling(); requestWakeLock(); }
 }
 function setPlayIcon(playing) {
