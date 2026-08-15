@@ -822,7 +822,7 @@ const TOKEN_KEY = "showLyricsReaderGithubToken";
 const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
 const GH_REPO = "EitanYarimi/show-lyrics-reader";
 /* Bump APP_VERSION on each release (shown small on the home screen). */
-const APP_VERSION = "1.0.24";
+const APP_VERSION = "1.0.25";
 
 function loadSongs() {
   let stored = null;
@@ -1835,18 +1835,18 @@ function scrollSpeedPxPerSec(song, scrollEl) {
   const beatSec = 60 / Math.max(1, tempo);
   const lines = scrollEl.querySelectorAll(".lyric-line");
 
-  // Content lines: 2 beats, blank separators: 1 beat.
+  // Content lines: 4 beats (one bar); blank separators: 2 beats.
   let totalBeats = 0;
   lines.forEach((el) => {
     const t = String(el.textContent || "").replace(/\u00a0/g, " ").trim();
-    totalBeats += t ? 2 : 1;
+    totalBeats += t ? 4 : 2;
   });
-  if (totalBeats < 1) totalBeats = 2;
+  if (totalBeats < 1) totalBeats = 4;
 
-  // Natural BPM length; duration may stretch slower, never faster than BPM.
+  // BPM-based length; if duration is set, use it so the lyric block fits the song.
   let totalSec = totalBeats * beatSec;
   const durSec = parseDurationToSeconds(song.duration);
-  if (durSec && durSec > 0) totalSec = Math.max(totalSec, durSec);
+  if (durSec && durSec > 0) totalSec = durSec;
 
   // Scroll distance covers lyric block only — ignore the tall bottom padding.
   let distance = maxScroll;
