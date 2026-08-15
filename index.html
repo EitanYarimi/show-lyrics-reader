@@ -242,20 +242,11 @@
     -webkit-overflow-scrolling: touch;
   }
   #reader-scroll .lyrics {
-    font-size: var(--font-size); line-height: 1.45; white-space: normal;
+    font-size: var(--font-size); line-height: 1.45; white-space: pre-wrap;
     font-weight: 700; max-width: 920px; margin: 0 auto;
     letter-spacing: 0.015em;
     font-variant-ligatures: none;
-  }
-  #reader-scroll .lyric-line {
-    min-height: 1.35em;
-    padding: 0.08em 0;
-    opacity: 0.38;
-    transition: opacity 0.12s linear, color 0.12s linear;
-  }
-  #reader-scroll .lyric-line.active {
-    opacity: 1;
-    color: var(--reader-active);
+    color: var(--text);
   }
   #reader-scroll .empty-hint {
     color: var(--muted); font-size: 18px; text-align: center; margin-top: 20vh; padding: 0 20px; line-height: 1.6;
@@ -956,8 +947,7 @@ let scrollAnim = null;
 let isPlaying = false;
 let speedMultiplier = 1.0;
 let lastTs = null;
-let playStartMs = null;
-let activeLineIndex = -1;
+let userHoldingScroll = false;
 
 function parseDurationToSeconds(str) {
   if (!str) return null;
@@ -982,10 +972,7 @@ function loadReaderSong() {
   startMetronome(s.tempo);
   const scrollEl = document.getElementById("reader-scroll");
   if (s.lyrics && s.lyrics.trim().length > 0) {
-    const lines = String(s.lyrics).replace(/\r\n/g, "\n").split("\n");
-    scrollEl.innerHTML = `<div class="lyrics">${lines.map((line, i) =>
-      `<div class="lyric-line" data-i="${i}">${line.trim().length ? escapeHtml(line) : "&nbsp;"}</div>`
-    ).join("")}</div>`;
+    scrollEl.innerHTML = `<div class="lyrics">${escapeHtml(s.lyrics)}</div>`;
   } else {
     scrollEl.innerHTML = `<div class="empty-hint">No lyrics added yet for this song.<br>Tap the pencil icon above to paste them in.</div>`;
   }
@@ -1079,18 +1066,14 @@ function nextSong() {
   if (currentIndex < songs.length - 1) startSongCountdown(currentIndex + 1, "Up next");
 }
 
-function lineBeatWeights(lineEls, song) {
-  // Content lines = 2 beats, blank lines = 1 beat.
-  let beats = lineEls.map(el => (el.textContent.trim() ? 2 : 1));
-  const totalBeats = beats.reduce((a, b) => a + b, 0) || 1;
+function scrollSpeedPxPerSec(song, scrollEl) {
+  const maxScroll = Math.max(0, scrollEl.scrollHeight - scrollEl.clientHeight);
   const durSec = parseDurationToSeconds(song.duration);
+  if (durSec && durSec > 0 && maxScroll > 0) return maxScroll / durSec;
   const tempo = song.tempo || 120;
-  if (durSec && durSec > 0) {
-    const naturalSec = totalBeats * (60 / tempo);
-    const scale = durSec / Math.max(0.001, naturalSec);
-    beats = beats.map(b => b * scale);
-  }
-  return beats;
+  const lineH = (settings.fontSize || 42) * 1.45;
+  // Roughly one lyric line every two beats.
+  return (tempo / 60) * (lineH / 2);
 }
 
 function togglePlay() {
@@ -1101,13 +1084,11 @@ function setPlayIcon(playing) {
   if (btn) btn.innerHTML = playing ? "&#10074;&#10074;" : "&#9654;";
 }
 function startScrolling() {
-  const lineEls = document.querySelectorAll("#reader-scroll .lyric-line");
-  if (!lineEls.length) return;
+  const scrollEl = document.getElementById("reader-scroll");
+  if (!scrollEl || !scrollEl.querySelector(".lyrics")) return;
   isPlaying = true;
   setPlayIcon(true);
   lastTs = null;
-  playStartMs = null;
-  activeLineIndex = -1;
   if (scrollAnim) cancelAnimationFrame(scrollAnim);
   scrollAnim = requestAnimationFrame(scrollStep);
 }
@@ -1117,57 +1098,36 @@ function stopScrolling() {
   if (scrollAnim) cancelAnimationFrame(scrollAnim);
   scrollAnim = null;
   lastTs = null;
-  playStartMs = null;
+  userHoldingScroll = false;
 }
 function scrollStep(ts) {
   if (!isPlaying) return;
   const scrollEl = document.getElementById("reader-scroll");
-  const song = songs[currentIndex] || {};
-  const tempo = song.tempo || 120;
-  const lineEls = Array.from(document.querySelectorAll("#reader-scroll .lyric-line"));
-  if (!scrollEl || !lineEls.length) { stopScrolling(); return; }
+  if (!scrollEl) { stopScrolling(); return; }
 
-  if (playStartMs == null) playStartMs = ts;
-  const beatSec = 60 / tempo;
-  const elapsedSec = Math.max(0, ((ts - playStartMs) / 1000) * speedMultiplier);
-  const beats = lineBeatWeights(lineEls, song);
-  const totalBeatUnits = beats.reduce((a, b) => a + b, 0);
-  const totalSec = totalBeatUnits * beatSec;
-
-  let acc = 0;
-  let current = lineEls.length - 1;
-  for (let i = 0; i < beats.length; i++) {
-    acc += beats[i] * beatSec;
-    if (elapsedSec < acc) {
-      current = i;
-      break;
-    }
-  }
-
-  if (current !== activeLineIndex) {
-    if (activeLineIndex >= 0 && lineEls[activeLineIndex]) {
-      lineEls[activeLineIndex].classList.remove("active");
-    }
-    lineEls[current].classList.add("active");
-    activeLineIndex = current;
-  }
-
-  const active = lineEls[current];
-  const maxScroll = Math.max(0, scrollEl.scrollHeight - scrollEl.clientHeight);
-  const desired = Math.max(0, Math.min(maxScroll, active.offsetTop - scrollEl.clientHeight * 0.28));
-  const dt = lastTs == null ? 0.016 : Math.min(0.05, (ts - lastTs) / 1000);
-  const follow = Math.min(1, 10 * dt);
-  scrollEl.scrollTop += (desired - scrollEl.scrollTop) * follow;
-  updateProgress();
-
-  if (elapsedSec >= totalSec) {
-    scrollEl.scrollTop = maxScroll;
-    updateProgress();
-    stopScrolling();
+  if (userHoldingScroll) {
+    lastTs = null;
+    scrollAnim = requestAnimationFrame(scrollStep);
     return;
   }
 
+  const song = songs[currentIndex] || {};
+  const dt = lastTs == null ? 0 : Math.min(0.05, (ts - lastTs) / 1000);
   lastTs = ts;
+
+  if (dt > 0) {
+    const maxScroll = Math.max(0, scrollEl.scrollHeight - scrollEl.clientHeight);
+    scrollEl.scrollTop = Math.min(
+      maxScroll,
+      scrollEl.scrollTop + scrollSpeedPxPerSec(song, scrollEl) * speedMultiplier * dt
+    );
+    updateProgress();
+    if (scrollEl.scrollTop >= maxScroll - 0.5) {
+      stopScrolling();
+      return;
+    }
+  }
+
   scrollAnim = requestAnimationFrame(scrollStep);
 }
 function updateProgress() {
@@ -1186,17 +1146,39 @@ function changeSpeed(delta) {
   document.getElementById("speed-label").textContent = speedMultiplier.toFixed(1) + "x";
 }
 function onReaderTap(e) {
-  if (isPlaying) stopScrolling();
+  /* Keep play running; use the play button to pause. Manual scroll continues from here. */
 }
-document.getElementById("reader-scroll").addEventListener("scroll", updateProgress);
+
+const readerScrollEl = document.getElementById("reader-scroll");
+readerScrollEl.addEventListener("scroll", updateProgress);
+function pauseAutoForUserScroll() {
+  if (!isPlaying) return;
+  userHoldingScroll = true;
+  lastTs = null;
+}
+function resumeAutoAfterUserScroll() {
+  if (!isPlaying) return;
+  userHoldingScroll = false;
+  lastTs = null;
+}
+readerScrollEl.addEventListener("touchstart", pauseAutoForUserScroll, { passive: true });
+readerScrollEl.addEventListener("touchend", resumeAutoAfterUserScroll, { passive: true });
+readerScrollEl.addEventListener("touchcancel", resumeAutoAfterUserScroll, { passive: true });
+readerScrollEl.addEventListener("mousedown", pauseAutoForUserScroll);
+window.addEventListener("mouseup", resumeAutoAfterUserScroll);
+readerScrollEl.addEventListener("wheel", () => {
+  pauseAutoForUserScroll();
+  clearTimeout(readerScrollEl._wheelResume);
+  readerScrollEl._wheelResume = setTimeout(resumeAutoAfterUserScroll, 180);
+}, { passive: true });
 
 /* Swipe left/right to change songs on the reader */
 let touchStartX = null, touchStartY = null;
-document.getElementById("reader-scroll").addEventListener("touchstart", (e) => {
+readerScrollEl.addEventListener("touchstart", (e) => {
   touchStartX = e.touches[0].clientX;
   touchStartY = e.touches[0].clientY;
 }, { passive: true });
-document.getElementById("reader-scroll").addEventListener("touchend", (e) => {
+readerScrollEl.addEventListener("touchend", (e) => {
   if (touchStartX === null) return;
   const dx = e.changedTouches[0].clientX - touchStartX;
   const dy = e.changedTouches[0].clientY - touchStartY;
