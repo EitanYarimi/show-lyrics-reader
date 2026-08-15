@@ -294,6 +294,14 @@
   .controls-row2 span { display: flex; align-items: center; gap: 4px; }
 
   #song-header { padding: 4px 12px 2px; text-align: center; min-width: 0; }
+  #song-header .title-line {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 10px;
+    min-width: 0;
+    max-width: 100%;
+  }
   #song-header .t {
     font-size: 24px;
     font-weight: 700;
@@ -303,9 +311,20 @@
     overflow: hidden;
     text-overflow: ellipsis;
     line-height: 1.15;
+    min-width: 0;
+    flex: 0 1 auto;
   }
-  #song-header .a-line { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 2px; }
-  #song-header .a { font-size: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #song-header .a {
+    font-size: 15px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 42%;
+  }
+  #song-header .a:empty { display: none; }
   #reader-tempo-badge {
     display: none;
     align-items: center;
@@ -491,8 +510,8 @@
     <div class="topbar" id="reader-topbar">
       <button class="icon-btn" onclick="stopAndLeaveReader()">&larr;</button>
       <div id="song-header" style="flex:1;">
-        <div class="t" id="reader-title">Song</div>
-        <div class="a-line">
+        <div class="title-line">
+          <div class="t" id="reader-title">Song</div>
           <div class="a" id="reader-artist">Artist</div>
         </div>
       </div>
