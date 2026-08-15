@@ -399,15 +399,21 @@
   body.light .play-btn.counting {
     background: #a11616;
   }
-  #reader-tempo-badge {
+  #reader-meta {
     display: none;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    margin-right: 4px;
+  }
+  #reader-meta.open { display: inline-flex; }
+  .reader-meta-badge {
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    flex-shrink: 0;
     min-height: 32px;
     padding: 4px 12px;
-    margin-right: 4px;
     border-radius: 999px;
     font-size: 15px;
     font-weight: 700;
@@ -417,8 +423,13 @@
     background: color-mix(in srgb, var(--accent2) 14%, transparent);
     border: 1.5px solid color-mix(in srgb, var(--accent2) 45%, transparent);
   }
-  #reader-tempo-badge .dot {
+  .reader-meta-badge .dot {
     width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0;
+  }
+  .reader-meta-badge.key {
+    color: var(--text);
+    background: color-mix(in srgb, var(--border) 35%, transparent);
+    border-color: var(--border);
   }
 
   ::-webkit-scrollbar { display: none; }
@@ -508,6 +519,10 @@
         <input id="edit-tempo" type="number" inputmode="numeric" placeholder="e.g. 120">
       </div>
       <div class="field">
+        <label>Key</label>
+        <input id="edit-key" type="text" placeholder="e.g. G, Am, D maj">
+      </div>
+      <div class="field">
         <label>Song length (mm:ss) &mdash; used to pace auto-scroll</label>
         <input id="edit-duration" type="text" placeholder="e.g. 3:45">
       </div>
@@ -533,9 +548,14 @@
           <div class="a" id="reader-artist">Artist</div>
         </div>
       </div>
-      <div id="reader-tempo-badge" style="display:none;">
-        <span class="dot"></span>
-        <span id="reader-tempo-number"></span>
+      <div id="reader-meta">
+        <div id="reader-tempo-badge" class="reader-meta-badge" style="display:none;">
+          <span class="dot"></span>
+          <span id="reader-tempo-number"></span>
+        </div>
+        <div id="reader-key-badge" class="reader-meta-badge key" style="display:none;">
+          <span id="reader-key-number"></span>
+        </div>
       </div>
       <button class="icon-btn" onclick="openEditFromReader()" title="Edit">&#9998;</button>
     </div>
@@ -782,6 +802,7 @@ function renderSetlist() {
         <div class="title">${escapeHtml(song.title || "Untitled")}</div>
         <div class="artist">${escapeHtml(song.artist || "")}</div>
         ${song.tempo ? `<div class="tempo-badge">${song.tempo} BPM</div>` : ""}
+        ${song.key ? `<div class="tempo-badge">${escapeHtml(song.key)}</div>` : ""}
       </div>
       <div class="reorder">
         <button class="mini-btn" onclick="moveSong(${i}, -1)">&#9650;</button>
@@ -802,7 +823,7 @@ function moveSong(i, dir) {
   renderSetlist();
 }
 function addSong() {
-  songs.push({ title: "New Song", artist: "", tempo: null, duration: "", lyrics: "" });
+  songs.push({ title: "New Song", artist: "", tempo: null, key: "", duration: "", lyrics: "" });
   saveSongs(true);
   openEdit(songs.length - 1);
 }
@@ -821,6 +842,7 @@ function openEdit(i) {
   document.getElementById("edit-title").value = s.title || "";
   document.getElementById("edit-artist").value = s.artist || "";
   document.getElementById("edit-tempo").value = s.tempo || "";
+  document.getElementById("edit-key").value = s.key || "";
   document.getElementById("edit-duration").value = s.duration || "";
   document.getElementById("edit-lyrics").value = s.lyrics || "";
   showScreen("edit");
@@ -837,6 +859,7 @@ function saveSong() {
     title: document.getElementById("edit-title").value.trim() || "Untitled",
     artist: document.getElementById("edit-artist").value.trim(),
     tempo: tempoVal ? parseInt(tempoVal, 10) : null,
+    key: document.getElementById("edit-key").value.trim(),
     duration: document.getElementById("edit-duration").value.trim(),
     lyrics: document.getElementById("edit-lyrics").value,
   };
@@ -1041,7 +1064,7 @@ function loadReaderSong(opts) {
   const s = songs[currentIndex] || {};
   document.getElementById("reader-title").textContent = s.title || "Untitled";
   document.getElementById("reader-artist").textContent = s.artist || "";
-  updateTempoBadge(s.tempo);
+  updateSongMetaBadges(s);
   stopMetronome();
   const scrollEl = document.getElementById("reader-scroll");
   if (s.lyrics && s.lyrics.trim().length > 0) {
@@ -1069,19 +1092,32 @@ function stopAndLeaveReader() {
    METRONOME (play button flashes with BPM only while playing)
    ============================================================ */
 let metronomeTimer = null;
-function updateTempoBadge(tempo) {
-  const badge = document.getElementById("reader-tempo-badge");
-  const numberEl = document.getElementById("reader-tempo-number");
-  if (!tempo) {
-    badge.style.display = "none";
-    return;
+function updateSongMetaBadges(song) {
+  const wrap = document.getElementById("reader-meta");
+  const tempoBadge = document.getElementById("reader-tempo-badge");
+  const tempoEl = document.getElementById("reader-tempo-number");
+  const keyBadge = document.getElementById("reader-key-badge");
+  const keyEl = document.getElementById("reader-key-number");
+  const tempo = song && song.tempo;
+  const key = song && String(song.key || "").trim();
+  if (tempo) {
+    tempoEl.textContent = "BPM: " + tempo;
+    tempoBadge.style.display = "inline-flex";
+  } else {
+    tempoBadge.style.display = "none";
   }
-  numberEl.textContent = "BPM: " + tempo;
-  badge.style.display = "inline-flex";
+  if (key) {
+    keyEl.textContent = "Key: " + key;
+    keyBadge.style.display = "inline-flex";
+  } else {
+    keyBadge.style.display = "none";
+  }
+  wrap.classList.toggle("open", !!(tempo || key));
 }
 function startMetronome(tempo) {
   stopMetronome();
-  updateTempoBadge(tempo);
+  const song = songs[currentIndex] || {};
+  updateSongMetaBadges(song);
   const playBtn = document.getElementById("play-btn");
   if (!tempo || !playBtn || playBtn.classList.contains("counting")) return;
   const halfBeatMs = 30000 / tempo;
@@ -1201,7 +1237,7 @@ function startSongCountdown(targetIndex) {
   // Keep header on the current song; announce the next one in the top bar only.
   document.getElementById("reader-title").textContent = current.title || "Untitled";
   document.getElementById("reader-artist").textContent = current.artist || "";
-  updateTempoBadge(current.tempo);
+  updateSongMetaBadges(current);
   songCountdownTarget = targetIndex;
   songCountdownLeft = 5;
   showAnnounceBar("Up next", next);
