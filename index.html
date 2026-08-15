@@ -134,6 +134,7 @@
   #screen-setlist.view-home .bar-set { display: none; }
   #screen-setlist.view-set .hero-banner,
   #screen-setlist.view-set #set-picks,
+  #screen-setlist.view-set #home-brand,
   #screen-setlist.view-set #home-label,
   #screen-setlist.view-set .bar-home { display: none; }
   #setlist-items { flex: 1; overflow-y: auto; padding: 10px 12px 24px; }
@@ -144,15 +145,30 @@
     background-size: cover;
     background-position: center top;
   }
-  #home-label {
-    font-family: var(--display);
+  #home-brand {
+    flex-shrink: 0;
     text-align: center;
-    padding: 22px 16px 14px;
-    color: var(--muted);
-    letter-spacing: 2px;
-    font-size: 18px;
-    text-transform: uppercase;
+    padding: 18px 20px 8px;
   }
+  #home-brand .home-brand-title {
+    margin: 0;
+    font-family: var(--display);
+    font-size: clamp(34px, 8vw, 52px);
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text);
+    line-height: 1.05;
+  }
+  #home-brand .home-brand-sub {
+    margin: 8px 0 0;
+    font-family: var(--display);
+    font-size: 15px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  #home-label { display: none; }
   #app-version {
     display: none;
     text-align: left;
@@ -165,28 +181,64 @@
     flex-shrink: 0;
   }
   #screen-setlist.view-home #app-version { display: block; }
-  #set-picks { flex: 1; overflow-y: auto; padding: 4px 20px 20px; }
+  #set-picks {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 20px 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 16px;
+    align-content: start;
+  }
   #set-picks:empty { display: none; }
-  #set-picks .song-row {
-    background: var(--card);
+  #set-picks .set-tile {
+    position: relative;
+    aspect-ratio: 1;
+    width: 100%;
     border: 1px solid var(--border);
     border-radius: 4px;
-    padding: 18px 16px;
-    margin: 0 0 12px;
-    gap: 16px;
+    overflow: hidden;
+    cursor: pointer;
+    background: linear-gradient(160deg, #2a1a12 0%, #120d0a 55%, #3a1212 100%);
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    align-items: flex-end;
+    text-align: left;
+    padding: 0;
+    color: #fff8ec;
+    font: inherit;
+    -webkit-tap-highlight-color: transparent;
   }
-  #set-picks .title {
+  #set-picks .set-tile:active { opacity: 0.92; transform: scale(0.99); }
+  #set-picks .set-tile-scrim {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 35%, rgba(8, 5, 4, 0.88) 100%);
+    pointer-events: none;
+  }
+  #set-picks .set-tile-title {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    padding: 14px 12px;
     font-family: var(--display);
-    font-size: 26px;
+    font-size: clamp(16px, 3.8vw, 22px);
     font-weight: 700;
     letter-spacing: 1px;
     text-transform: uppercase;
-    white-space: normal;
+    line-height: 1.15;
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.65);
   }
-  #set-picks .btn {
-    flex: none;
-    padding: 16px 22px;
-    font-size: 16px;
+  body.light #set-picks .set-tile {
+    background: linear-gradient(160deg, #ebe0d0 0%, #d4c0a4 55%, #c9a070 100%);
+    color: #1c120e;
+  }
+  body.light #set-picks .set-tile-scrim {
+    background: linear-gradient(180deg, transparent 40%, rgba(247, 241, 232, 0.92) 100%);
+  }
+  body.light #set-picks .set-tile-title {
+    text-shadow: none;
   }
   .song-row {
     display: flex; align-items: center; gap: 10px;
@@ -551,6 +603,10 @@
       </div>
       <button class="icon-btn" onclick="addSong()" title="Add song">+</button>
     </div>
+    <div id="home-brand">
+      <h1 class="home-brand-title">Red Rock Lyrics</h1>
+      <p class="home-brand-sub">Choose a set</p>
+    </div>
     <div id="home-label">Choose a set</div>
     <div id="set-picks"></div>
     <div id="setlist-items"></div>
@@ -724,7 +780,7 @@ const TOKEN_KEY = "showLyricsReaderGithubToken";
 const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
 const GH_REPO = "EitanYarimi/show-lyrics-reader";
 /* Bump APP_VERSION on each release (shown small on the home screen). */
-const APP_VERSION = "1.0.11";
+const APP_VERSION = "1.0.12";
 
 function loadSongs() {
   let stored = null;
@@ -1221,28 +1277,25 @@ function renderSetRows(container, sets) {
     container.innerHTML = "<div class='hint'>No shared sets yet. Add original-song JSON links in sets.json.</div>";
     return;
   }
-  sets.forEach((set, i) => {
+  sets.forEach((set) => {
     const name = set.name || "Untitled set";
     const url = set.url || "";
-    const row = document.createElement("div");
-    row.className = "song-row";
-    row.innerHTML = `
-      <div class="info">
-        <div class="title">${escapeHtml(name)}</div>
-      </div>
-      <div class="actions">
-        <button class="btn btn-primary" data-setup="1">Set up</button>
-      </div>
+    const image = set.image || set.cover || "";
+    const tile = document.createElement("button");
+    tile.type = "button";
+    tile.className = "set-tile";
+    tile.setAttribute("aria-label", "Open set " + name);
+    if (image) {
+      const src = resolveJsonUrl(image);
+      tile.style.backgroundImage =
+        "linear-gradient(180deg, transparent 35%, rgba(8,5,4,0.88) 100%), url(\"" + src.replace(/"/g, '\\"') + "\")";
+    }
+    tile.innerHTML = `
+      <span class="set-tile-scrim" aria-hidden="true"></span>
+      <span class="set-tile-title">${escapeHtml(name)}</span>
     `;
-    row.querySelector("[data-setup]").addEventListener("click", (e) => {
-      e.stopPropagation();
-      loadJsonFromUrl(url, name);
-    });
-    row.addEventListener("click", (e) => {
-      if (e.target.closest("button")) return;
-      loadJsonFromUrl(url, name);
-    });
-    container.appendChild(row);
+    tile.addEventListener("click", () => loadJsonFromUrl(url, name));
+    container.appendChild(tile);
   });
 }
 

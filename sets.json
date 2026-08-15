@@ -2,7 +2,8 @@
   "sets": [
     {
       "name": "Red Rock Setlist",
-      "url": "./sets/red-rock-setlist.json"
+      "url": "./sets/red-rock-setlist.json",
+      "image": "./banner.jpg"
     }
   ]
 }
