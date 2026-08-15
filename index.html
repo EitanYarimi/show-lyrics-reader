@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>Show Lyrics</title>
+<title>GigSync</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400;1,700&family=Oswald:wght@500;600;700&display=swap');
   :root {
@@ -130,10 +130,20 @@
   #home-brand .home-brand-sub {
     margin: 10px 0 0;
     font-family: var(--display);
-    font-size: 15px;
+    font-size: 14px;
+    letter-spacing: 1.5px;
+    text-transform: none;
+    font-style: italic;
+    color: var(--muted);
+  }
+  #home-brand .home-brand-hint {
+    margin: 14px 0 0;
+    font-family: var(--display);
+    font-size: 13px;
     letter-spacing: 2px;
     text-transform: uppercase;
     color: var(--muted);
+    opacity: 0.85;
   }
   #home-label { display: none; }
   #app-version {
@@ -562,14 +572,15 @@
   <section id="screen-setlist" class="screen active view-home">
     <div class="topbar">
       <div>
-        <h1 id="show-title">Show Lyrics</h1>
+        <h1 id="show-title">GigSync</h1>
         <div class="sub" id="show-sub">Choose a set</div>
       </div>
       <button class="icon-btn" onclick="addSong()" title="Add song">+</button>
     </div>
     <div id="home-brand">
-      <h1 class="home-brand-title">Show Lyrics</h1>
-      <p class="home-brand-sub">Choose a set</p>
+      <h1 class="home-brand-title">GigSync</h1>
+      <p class="home-brand-sub">Never lose a beat</p>
+      <p class="home-brand-hint">Choose a set</p>
     </div>
     <div id="home-label">Choose a set</div>
     <div id="set-picks"></div>
@@ -744,7 +755,7 @@ const TOKEN_KEY = "showLyricsReaderGithubToken";
 const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
 const GH_REPO = "EitanYarimi/show-lyrics-reader";
 /* Bump APP_VERSION on each release (shown small on the home screen). */
-const APP_VERSION = "1.0.14";
+const APP_VERSION = "1.0.15";
 
 function loadSongs() {
   let stored = null;
@@ -1182,7 +1193,7 @@ function showHome() {
   const screen = document.getElementById("screen-setlist");
   screen.classList.add("view-home");
   screen.classList.remove("view-set");
-  document.getElementById("show-title").textContent = "Show Lyrics";
+  document.getElementById("show-title").textContent = "GigSync";
   document.getElementById("show-sub").textContent = "Choose a set";
   showScreen("setlist");
 }
