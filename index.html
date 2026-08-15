@@ -969,11 +969,12 @@ let isPlaying = false;
 let speedMultiplier = 1.0;
 let lastTs = null;
 let userHoldingScroll = false;
+let scrollPos = 0;
 
 function parseDurationToSeconds(str) {
   if (!str) return null;
-  const parts = str.split(":").map(p => parseInt(p, 10));
-  if (parts.some(isNaN)) return null;
+  const parts = String(str).trim().split(":").map(p => parseInt(p, 10));
+  if (!parts.length || parts.some(isNaN)) return null;
   if (parts.length === 2) return parts[0] * 60 + parts[1];
   if (parts.length === 1) return parts[0];
   if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
@@ -1096,11 +1097,11 @@ function nextSong() {
 function scrollSpeedPxPerSec(song, scrollEl) {
   const maxScroll = Math.max(0, scrollEl.scrollHeight - scrollEl.clientHeight);
   const durSec = parseDurationToSeconds(song.duration);
-  if (durSec && durSec > 0 && maxScroll > 0) return maxScroll / durSec;
-  const tempo = song.tempo || 120;
+  if (durSec && durSec > 0 && maxScroll > 0) return Math.max(8, maxScroll / durSec);
+  const tempo = Number(song.tempo) || 120;
   const lineH = (settings.fontSize || 42) * 1.45;
-  // Roughly one lyric line every two beats.
-  return (tempo / 60) * (lineH / 2);
+  // About one lyric line per beat — readable on stage.
+  return Math.max(12, (tempo / 60) * lineH);
 }
 
 function togglePlay() {
@@ -1114,8 +1115,10 @@ function startScrolling() {
   const scrollEl = document.getElementById("reader-scroll");
   if (!scrollEl || !scrollEl.querySelector(".lyrics")) return;
   isPlaying = true;
+  userHoldingScroll = false;
   setPlayIcon(true);
   lastTs = null;
+  scrollPos = scrollEl.scrollTop;
   const song = songs[currentIndex] || {};
   startMetronome(song.tempo);
   if (scrollAnim) cancelAnimationFrame(scrollAnim);
@@ -1136,6 +1139,7 @@ function scrollStep(ts) {
   if (!scrollEl) { stopScrolling(); return; }
 
   if (userHoldingScroll) {
+    scrollPos = scrollEl.scrollTop;
     lastTs = null;
     scrollAnim = requestAnimationFrame(scrollStep);
     return;
@@ -1145,14 +1149,19 @@ function scrollStep(ts) {
   const dt = lastTs == null ? 0 : Math.min(0.05, (ts - lastTs) / 1000);
   lastTs = ts;
 
+  const maxScroll = Math.max(0, scrollEl.scrollHeight - scrollEl.clientHeight);
+  if (maxScroll <= 0) {
+    scrollAnim = requestAnimationFrame(scrollStep);
+    return;
+  }
+
   if (dt > 0) {
-    const maxScroll = Math.max(0, scrollEl.scrollHeight - scrollEl.clientHeight);
-    scrollEl.scrollTop = Math.min(
-      maxScroll,
-      scrollEl.scrollTop + scrollSpeedPxPerSec(song, scrollEl) * speedMultiplier * dt
-    );
+    scrollPos = Math.min(maxScroll, scrollPos + scrollSpeedPxPerSec(song, scrollEl) * speedMultiplier * dt);
+    scrollEl.scrollTop = scrollPos;
     updateProgress();
-    if (scrollEl.scrollTop >= maxScroll - 0.5) {
+    if (scrollPos >= maxScroll - 0.5) {
+      scrollEl.scrollTop = maxScroll;
+      updateProgress();
       stopScrolling();
       return;
     }
@@ -1169,6 +1178,7 @@ function updateProgress() {
 function scrollNudge(dir) {
   const scrollEl = document.getElementById("reader-scroll");
   scrollEl.scrollTop += dir * 120;
+  scrollPos = scrollEl.scrollTop;
   updateProgress();
 }
 function changeSpeed(delta) {
@@ -1180,15 +1190,20 @@ function onReaderTap(e) {
 }
 
 const readerScrollEl = document.getElementById("reader-scroll");
-readerScrollEl.addEventListener("scroll", updateProgress);
+readerScrollEl.addEventListener("scroll", () => {
+  if (userHoldingScroll || !isPlaying) scrollPos = readerScrollEl.scrollTop;
+  updateProgress();
+});
 function pauseAutoForUserScroll() {
   if (!isPlaying) return;
   userHoldingScroll = true;
+  scrollPos = readerScrollEl.scrollTop;
   lastTs = null;
 }
 function resumeAutoAfterUserScroll() {
-  if (!isPlaying) return;
+  if (!userHoldingScroll) return;
   userHoldingScroll = false;
+  scrollPos = readerScrollEl.scrollTop;
   lastTs = null;
 }
 readerScrollEl.addEventListener("touchstart", pauseAutoForUserScroll, { passive: true });
@@ -1196,6 +1211,9 @@ readerScrollEl.addEventListener("touchend", resumeAutoAfterUserScroll, { passive
 readerScrollEl.addEventListener("touchcancel", resumeAutoAfterUserScroll, { passive: true });
 readerScrollEl.addEventListener("mousedown", pauseAutoForUserScroll);
 window.addEventListener("mouseup", resumeAutoAfterUserScroll);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") resumeAutoAfterUserScroll();
+});
 readerScrollEl.addEventListener("wheel", () => {
   pauseAutoForUserScroll();
   clearTimeout(readerScrollEl._wheelResume);
