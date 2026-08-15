@@ -301,22 +301,22 @@
     display: none;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 6px;
     flex-shrink: 0;
-    min-height: 22px;
-    padding: 1px 7px;
-    margin-right: 2px;
+    min-height: 32px;
+    padding: 4px 12px;
+    margin-right: 4px;
     border-radius: 999px;
-    font-size: 11px;
+    font-size: 15px;
     font-weight: 700;
     font-family: var(--display);
-    letter-spacing: 0.4px;
+    letter-spacing: 0.6px;
     color: var(--accent2);
     background: color-mix(in srgb, var(--accent2) 14%, transparent);
-    border: 1px solid color-mix(in srgb, var(--accent2) 45%, transparent);
+    border: 1.5px solid color-mix(in srgb, var(--accent2) 45%, transparent);
   }
   #reader-tempo-badge .dot {
-    width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0;
+    width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0;
   }
 
   #song-countdown {
@@ -1022,7 +1022,7 @@ function updateTempoBadge(tempo) {
     badge.style.display = "none";
     return;
   }
-  numberEl.textContent = String(tempo);
+  numberEl.textContent = "BPM: " + tempo;
   badge.style.display = "inline-flex";
 }
 function startMetronome(tempo) {
