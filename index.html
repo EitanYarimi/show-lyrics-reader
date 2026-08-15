@@ -822,7 +822,7 @@ const TOKEN_KEY = "showLyricsReaderGithubToken";
 const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
 const GH_REPO = "EitanYarimi/show-lyrics-reader";
 /* Bump APP_VERSION on each release (shown small on the home screen). */
-const APP_VERSION = "1.0.23";
+const APP_VERSION = "1.0.24";
 
 function loadSongs() {
   let stored = null;
@@ -1829,13 +1829,34 @@ function nextSong() {
 
 function scrollSpeedPxPerSec(song, scrollEl) {
   const maxScroll = Math.max(0, scrollEl.scrollHeight - scrollEl.clientHeight);
-  const durSec = parseDurationToSeconds(song.duration);
-  // If song length is set, fit the full scroll to that duration.
-  if (durSec && durSec > 0 && maxScroll > 0) return Math.max(4, maxScroll / durSec);
+  if (maxScroll <= 0) return 0;
+
   const tempo = Number(song.tempo) || 120;
-  const lineH = (settings.fontSize || 42) * 1.45;
-  // About one lyric line every two beats — readable on stage, not a race.
-  return Math.max(6, (tempo / 60) * (lineH / 2));
+  const beatSec = 60 / Math.max(1, tempo);
+  const lines = scrollEl.querySelectorAll(".lyric-line");
+
+  // Content lines: 2 beats, blank separators: 1 beat.
+  let totalBeats = 0;
+  lines.forEach((el) => {
+    const t = String(el.textContent || "").replace(/\u00a0/g, " ").trim();
+    totalBeats += t ? 2 : 1;
+  });
+  if (totalBeats < 1) totalBeats = 2;
+
+  // Natural BPM length; duration may stretch slower, never faster than BPM.
+  let totalSec = totalBeats * beatSec;
+  const durSec = parseDurationToSeconds(song.duration);
+  if (durSec && durSec > 0) totalSec = Math.max(totalSec, durSec);
+
+  // Scroll distance covers lyric block only — ignore the tall bottom padding.
+  let distance = maxScroll;
+  if (lines.length) {
+    const last = lines[lines.length - 1];
+    const target = Math.max(0, last.offsetTop - scrollEl.clientHeight * 0.28);
+    distance = Math.min(maxScroll, Math.max(1, target));
+  }
+
+  return Math.max(2, distance / totalSec);
 }
 
 function togglePlay() {
