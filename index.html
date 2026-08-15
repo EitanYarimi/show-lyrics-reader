@@ -276,6 +276,62 @@
     width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0;
   }
 
+  #song-countdown {
+    display: none;
+    position: absolute;
+    inset: 0;
+    z-index: 40;
+    background: rgba(8, 5, 4, 0.88);
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    text-align: center;
+    padding: 24px;
+  }
+  #song-countdown.open { display: flex; }
+  #song-countdown .cd-label {
+    font-family: var(--display);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  #song-countdown .cd-title {
+    font-family: var(--display);
+    font-size: clamp(28px, 5vw, 42px);
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--text);
+    max-width: 90vw;
+  }
+  #song-countdown .cd-artist {
+    font-size: 16px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  #song-countdown .cd-number {
+    font-family: var(--display);
+    font-size: clamp(72px, 18vw, 120px);
+    font-weight: 700;
+    line-height: 1;
+    color: var(--accent);
+    text-shadow: 0 0 40px rgba(139, 28, 28, 0.45);
+  }
+  #song-countdown .cd-skip {
+    margin-top: 18px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 4px;
+    padding: 10px 18px;
+    font-family: var(--display);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
   ::-webkit-scrollbar { display: none; }
 </style>
 </head>
@@ -378,7 +434,7 @@
   </section>
 
   <!-- ================= READER SCREEN ================= -->
-  <section id="screen-reader" class="screen">
+  <section id="screen-reader" class="screen" style="position:relative;">
     <div class="topbar" id="reader-topbar">
       <button class="icon-btn" onclick="stopAndLeaveReader()">&larr;</button>
       <div id="song-header" style="flex:1;">
@@ -404,6 +460,13 @@
         <button class="nav-btn" onclick="nextSong()">&#9654;&#9654;</button>
       </div>
       <div class="speed-label" id="speed-label" style="display:none">1.0x</div>
+    </div>
+    <div id="song-countdown" aria-live="polite">
+      <div class="cd-label" id="cd-label">Up next</div>
+      <div class="cd-title" id="cd-title"></div>
+      <div class="cd-artist" id="cd-artist"></div>
+      <div class="cd-number" id="cd-number">5</div>
+      <button class="cd-skip" type="button" onclick="cancelSongCountdown()">Cancel</button>
     </div>
   </section>
 
@@ -889,6 +952,7 @@ function loadReaderSong() {
   setPlayIcon(false);
 }
 function stopAndLeaveReader() {
+  cancelSongCountdown();
   stopScrolling();
   stopMetronome();
   releaseWakeLock();
@@ -921,11 +985,56 @@ function stopMetronome() {
   const badge = document.getElementById("reader-tempo-badge");
   if (badge) badge.classList.remove("lit");
 }
+let songCountdownTimer = null;
+let songCountdownLeft = 0;
+let songCountdownTarget = null;
+
+function cancelSongCountdown() {
+  if (songCountdownTimer) {
+    clearInterval(songCountdownTimer);
+    songCountdownTimer = null;
+  }
+  songCountdownLeft = 0;
+  songCountdownTarget = null;
+  const el = document.getElementById("song-countdown");
+  if (el) el.classList.remove("open");
+}
+
+function finishSongCountdown() {
+  const target = songCountdownTarget;
+  cancelSongCountdown();
+  if (target == null || target < 0 || target >= songs.length) return;
+  currentIndex = target;
+  loadReaderSong();
+}
+
+function startSongCountdown(targetIndex, label) {
+  if (targetIndex < 0 || targetIndex >= songs.length || targetIndex === currentIndex) return;
+  stopScrolling();
+  cancelSongCountdown();
+  const next = songs[targetIndex] || {};
+  songCountdownTarget = targetIndex;
+  songCountdownLeft = 5;
+  document.getElementById("cd-label").textContent = label || "Up next";
+  document.getElementById("cd-title").textContent = next.title || "Untitled";
+  document.getElementById("cd-artist").textContent = next.artist || "";
+  document.getElementById("cd-number").textContent = String(songCountdownLeft);
+  document.getElementById("song-countdown").classList.add("open");
+  songCountdownTimer = setInterval(() => {
+    songCountdownLeft -= 1;
+    if (songCountdownLeft <= 0) {
+      finishSongCountdown();
+      return;
+    }
+    document.getElementById("cd-number").textContent = String(songCountdownLeft);
+  }, 1000);
+}
+
 function prevSong() {
-  if (currentIndex > 0) { currentIndex--; loadReaderSong(); }
+  if (currentIndex > 0) startSongCountdown(currentIndex - 1, "Previous");
 }
 function nextSong() {
-  if (currentIndex < songs.length - 1) { currentIndex++; loadReaderSong(); }
+  if (currentIndex < songs.length - 1) startSongCountdown(currentIndex + 1, "Up next");
 }
 
 function lineBeatWeights(lineEls, song) {
