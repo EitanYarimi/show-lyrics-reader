@@ -338,18 +338,54 @@
     max-width: 42%;
   }
   #song-header .a:empty { display: none; }
-  #song-header.title-flash .t {
-    color: var(--accent);
-    text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 55%, transparent);
-    animation: titlePulse 0.7s ease-in-out infinite;
+  #announce-bar {
+    display: none;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 4px;
+    padding: 14px 18px 16px;
+    background: color-mix(in srgb, var(--accent) 92%, #000);
+    border-bottom: 2px solid var(--accent2);
+    text-align: center;
+    z-index: 12;
+    animation: announceDrop 0.28s ease-out;
   }
-  #song-header.title-flash .a {
-    color: var(--accent2);
+  #announce-bar.open { display: flex; }
+  #announce-bar .announce-label {
+    font-family: var(--display);
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: rgba(255, 248, 236, 0.75);
+  }
+  #announce-bar .announce-title {
+    font-family: var(--display);
+    font-size: clamp(26px, 5.5vw, 40px);
+    font-weight: 700;
+    letter-spacing: 1px;
+    line-height: 1.1;
+    color: #fff8ec;
+    text-shadow: 0 0 18px rgba(0, 0, 0, 0.35);
     animation: titlePulse 0.7s ease-in-out infinite;
+    max-width: 96vw;
+  }
+  #announce-bar .announce-artist {
+    font-size: 15px;
+    color: rgba(255, 248, 236, 0.82);
+    max-width: 96vw;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  @keyframes announceDrop {
+    from { transform: translateY(-100%); opacity: 0.4; }
+    to { transform: translateY(0); opacity: 1; }
   }
   @keyframes titlePulse {
     0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.72; transform: scale(1.03); }
+    50% { opacity: 0.78; transform: scale(1.02); }
   }
   .play-btn.counting {
     font-family: var(--display);
@@ -358,6 +394,7 @@
     letter-spacing: 0;
     background: #c62828;
     box-shadow: 0 0 0 3px rgba(198, 40, 40, 0.35), 0 0 18px 4px rgba(139, 28, 28, 0.45);
+    pointer-events: none;
   }
   body.light .play-btn.counting {
     background: #a11616;
@@ -501,6 +538,11 @@
         <span id="reader-tempo-number"></span>
       </div>
       <button class="icon-btn" onclick="openEditFromReader()" title="Edit">&#9998;</button>
+    </div>
+    <div id="announce-bar" aria-live="polite">
+      <div class="announce-label" id="announce-label">Starting</div>
+      <div class="announce-title" id="announce-title"></div>
+      <div class="announce-artist" id="announce-artist"></div>
     </div>
     <div id="reader-scroll" onclick="onReaderTap(event)"></div>
     <div id="reader-controls">
@@ -1060,9 +1102,16 @@ let songCountdownTarget = null;
 let introTimer = null;
 let introLeft = 0;
 
-function setTitleFlash(on) {
-  const header = document.getElementById("song-header");
-  if (header) header.classList.toggle("title-flash", !!on);
+function showAnnounceBar(label, song) {
+  const bar = document.getElementById("announce-bar");
+  document.getElementById("announce-label").textContent = label || "";
+  document.getElementById("announce-title").textContent = (song && song.title) || "Untitled";
+  document.getElementById("announce-artist").textContent = (song && song.artist) || "";
+  bar.classList.add("open");
+}
+function hideAnnounceBar() {
+  const bar = document.getElementById("announce-bar");
+  if (bar) bar.classList.remove("open");
 }
 function setPlayCountdownNumber(n) {
   const btn = document.getElementById("play-btn");
@@ -1077,6 +1126,9 @@ function clearPlayCountdownLook() {
   btn.classList.remove("counting");
   if (!isPlaying) setPlayIcon(false);
 }
+function isCountdownActive() {
+  return introLeft > 0 || songCountdownTarget != null;
+}
 
 function cancelIntroCountdown() {
   if (introTimer) {
@@ -1085,7 +1137,7 @@ function cancelIntroCountdown() {
   }
   introLeft = 0;
   if (songCountdownTarget == null) {
-    setTitleFlash(false);
+    hideAnnounceBar();
     clearPlayCountdownLook();
   }
 }
@@ -1093,12 +1145,14 @@ function cancelIntroCountdown() {
 function scheduleAutoPlay(seconds) {
   cancelIntroCountdown();
   const scrollEl = document.getElementById("reader-scroll");
+  const song = songs[currentIndex] || {};
   if (!scrollEl || !scrollEl.querySelector(".lyrics")) {
     setPlayIcon(false);
+    hideAnnounceBar();
     return;
   }
   introLeft = seconds;
-  setTitleFlash(true);
+  showAnnounceBar("Starting", song);
   setPlayCountdownNumber(introLeft);
   introTimer = setInterval(() => {
     introLeft -= 1;
@@ -1120,7 +1174,7 @@ function cancelSongCountdown() {
   songCountdownLeft = 0;
   songCountdownTarget = null;
   if (introLeft <= 0) {
-    setTitleFlash(false);
+    hideAnnounceBar();
     clearPlayCountdownLook();
   }
 }
@@ -1138,13 +1192,15 @@ function startSongCountdown(targetIndex) {
   stopScrolling();
   cancelIntroCountdown();
   cancelSongCountdown();
+  const current = songs[currentIndex] || {};
   const next = songs[targetIndex] || {};
+  // Keep header on the current song; announce the next one in the top bar only.
+  document.getElementById("reader-title").textContent = current.title || "Untitled";
+  document.getElementById("reader-artist").textContent = current.artist || "";
+  updateTempoBadge(current.tempo);
   songCountdownTarget = targetIndex;
   songCountdownLeft = 5;
-  document.getElementById("reader-title").textContent = next.title || "Untitled";
-  document.getElementById("reader-artist").textContent = next.artist || "";
-  updateTempoBadge(next.tempo);
-  setTitleFlash(true);
+  showAnnounceBar("Up next", next);
   setPlayCountdownNumber(songCountdownLeft);
   songCountdownTimer = setInterval(() => {
     songCountdownLeft -= 1;
@@ -1173,22 +1229,8 @@ function scrollSpeedPxPerSec(song, scrollEl) {
 }
 
 function togglePlay() {
-  if (songCountdownTarget != null) {
-    // Skip ahead to the pending song and start its intro, or play now.
-    const target = songCountdownTarget;
-    cancelSongCountdown();
-    currentIndex = target;
-    loadReaderSong({ autoPlayDelay: 0 });
-    startScrolling();
-    requestWakeLock();
-    return;
-  }
-  if (introLeft > 0) {
-    cancelIntroCountdown();
-    startScrolling();
-    requestWakeLock();
-    return;
-  }
+  // Countdown is display-only — tapping it must not stop or skip.
+  if (isCountdownActive()) return;
   if (isPlaying) { stopScrolling(); } else { startScrolling(); requestWakeLock(); }
 }
 function setPlayIcon(playing) {
@@ -1200,6 +1242,7 @@ function startScrolling() {
   const scrollEl = document.getElementById("reader-scroll");
   if (!scrollEl || !scrollEl.querySelector(".lyrics")) return;
   cancelIntroCountdown();
+  hideAnnounceBar();
   isPlaying = true;
   userHoldingScroll = false;
   const btn = document.getElementById("play-btn");
