@@ -737,7 +737,7 @@
       <div class="bottom-actions bar-set">
         <button class="btn btn-secondary" onclick="showHome()">Home</button>
         <button class="btn btn-secondary" onclick="exportData()">Export</button>
-        <button class="btn btn-primary" onclick="requestWakeLock()">Keep awake</button>
+        <button class="btn btn-primary" id="sync-from-github-btn" onclick="syncFromGithub()" title="Pull latest setlist from GitHub">Sync</button>
       </div>
     </div>
     <input type="file" id="import-file" accept="application/json" style="display:none" onchange="importData(event)">
@@ -903,7 +903,7 @@ const TOKEN_KEY = "showLyricsReaderGithubToken";
 const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
 const GH_REPO = "EitanYarimi/show-lyrics-reader";
 /* Bump APP_VERSION on each release (shown small on the home screen). */
-const APP_VERSION = "1.0.29";
+const APP_VERSION = "1.0.31";
 
 function loadSongs() {
   let stored = null;
@@ -1421,6 +1421,62 @@ function applySongsJson(text, successMessage) {
   } catch (e) {
     alert("Couldn't read that JSON.");
     return false;
+  }
+}
+
+/** Pull the active set's JSON from GitHub (or public URL) onto this device. */
+async function syncFromGithub() {
+  if (!activeSet || !(activeSet.url || activeSet.path)) {
+    setSaveStatus("Open a set from Home first", "err");
+    return false;
+  }
+  const path = ensureActiveSetPath();
+  const token = localStorage.getItem(TOKEN_KEY) || "";
+  const btn = document.getElementById("sync-from-github-btn");
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = "…";
+  }
+  setSaveStatus("Pulling from GitHub…", "pending");
+  try {
+    let text = null;
+    if (path && token) {
+      const apiRes = await fetch("https://api.github.com/repos/" + GH_REPO + "/contents/" + path, {
+        headers: {
+          Authorization: "Bearer " + token,
+          Accept: "application/vnd.github.raw+json",
+        },
+        cache: "no-store",
+      });
+      if (apiRes.status === 401 || apiRes.status === 403) {
+        setSaveStatus("GitHub auth failed — check token has repo access", "err");
+        return false;
+      }
+      if (apiRes.ok) text = await apiRes.text();
+    }
+    if (text == null) {
+      const url = activeSet.url || ("./" + path);
+      const res = await fetch(resolveJsonUrl(url), { cache: "no-store" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      text = await res.text();
+    }
+    if (!applySongsJson(text)) {
+      setSaveStatus("Couldn't read set JSON from GitHub", "err");
+      return false;
+    }
+    setSaveStatus("Synced from GitHub successfully", "ok");
+    return true;
+  } catch (e) {
+    setSaveStatus(
+      "Sync from GitHub failed" + (e && e.message ? ": " + e.message : ""),
+      "err"
+    );
+    return false;
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = "Sync";
+    }
   }
 }
 
