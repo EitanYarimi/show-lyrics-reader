@@ -822,7 +822,7 @@ const TOKEN_KEY = "showLyricsReaderGithubToken";
 const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
 const GH_REPO = "EitanYarimi/show-lyrics-reader";
 /* Bump APP_VERSION on each release (shown small on the home screen). */
-const APP_VERSION = "1.0.22";
+const APP_VERSION = "1.0.23";
 
 function loadSongs() {
   let stored = null;
@@ -1797,47 +1797,34 @@ function cancelSongCountdown() {
   }
 }
 
-function finishSongCountdown() {
-  const target = songCountdownTarget;
+function goToSong(index) {
+  if (index < 0 || index >= songs.length || index === currentIndex) return;
   cancelSongCountdown();
-  if (target == null || target < 0 || target >= songs.length) return;
-  currentIndex = target;
+  cancelIntroCountdown();
+  disarmSongStart();
+  stopScrolling();
+  currentIndex = index;
   loadReaderSong({ autoPlayDelay: 10 });
   resetReaderScrollToTop();
 }
 
-function startSongCountdown(targetIndex) {
-  if (targetIndex < 0 || targetIndex >= songs.length || targetIndex === currentIndex) return;
-  stopScrolling();
-  disarmSongStart();
-  cancelIntroCountdown();
+function finishSongCountdown() {
+  const target = songCountdownTarget;
   cancelSongCountdown();
-  resetReaderScrollToTop();
-  const current = songs[currentIndex] || {};
-  const next = songs[targetIndex] || {};
-  // Keep header on the current song; announce the next one in the top bar only.
-  document.getElementById("reader-title").textContent = current.title || "Untitled";
-  document.getElementById("reader-artist").textContent = current.artist || "";
-  updateSongMetaBadges(current);
-  songCountdownTarget = targetIndex;
-  songCountdownLeft = 5;
-  showAnnounceBar("Up next", next);
-  setPlayCountdownNumber(songCountdownLeft);
-  songCountdownTimer = setInterval(() => {
-    songCountdownLeft -= 1;
-    if (songCountdownLeft <= 0) {
-      finishSongCountdown();
-      return;
-    }
-    setPlayCountdownNumber(songCountdownLeft);
-  }, 1000);
+  if (target == null || target < 0 || target >= songs.length) return;
+  goToSong(target);
+}
+
+function startSongCountdown(targetIndex) {
+  // Kept for compatibility; next/prev jump immediately via goToSong.
+  goToSong(targetIndex);
 }
 
 function prevSong() {
-  if (currentIndex > 0) startSongCountdown(currentIndex - 1);
+  goToSong(currentIndex - 1);
 }
 function nextSong() {
-  if (currentIndex < songs.length - 1) startSongCountdown(currentIndex + 1);
+  goToSong(currentIndex + 1);
 }
 
 function scrollSpeedPxPerSec(song, scrollEl) {
