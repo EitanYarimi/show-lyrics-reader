@@ -1108,10 +1108,14 @@ function showAnnounceBar(label, song) {
   document.getElementById("announce-title").textContent = (song && song.title) || "Untitled";
   document.getElementById("announce-artist").textContent = (song && song.artist) || "";
   bar.classList.add("open");
+  const header = document.getElementById("song-header");
+  if (header) header.style.visibility = "hidden";
 }
 function hideAnnounceBar() {
   const bar = document.getElementById("announce-bar");
   if (bar) bar.classList.remove("open");
+  const header = document.getElementById("song-header");
+  if (header) header.style.visibility = "";
 }
 function setPlayCountdownNumber(n) {
   const btn = document.getElementById("play-btn");
