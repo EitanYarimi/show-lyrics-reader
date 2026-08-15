@@ -266,6 +266,16 @@
     width: 58px; height: 58px; border-radius: 50%; border: none; background: var(--accent);
     color: var(--btn-on-accent); font-size: 22px; display: flex; align-items: center; justify-content: center;
     flex-shrink: 0; cursor: pointer;
+    transition: background-color 0.04s linear, box-shadow 0.04s linear, transform 0.04s linear;
+  }
+  .play-btn.lit {
+    background: #c62828;
+    box-shadow: 0 0 0 3px rgba(198, 40, 40, 0.35), 0 0 18px 4px rgba(139, 28, 28, 0.55);
+    transform: scale(1.04);
+  }
+  body.light .play-btn.lit {
+    background: #a11616;
+    box-shadow: 0 0 0 3px rgba(161, 22, 22, 0.28), 0 0 14px 3px rgba(139, 28, 28, 0.35);
   }
   .nav-btn {
     background: var(--card); border: 1px solid var(--border); color: var(--text);
@@ -301,14 +311,6 @@
     color: var(--accent2);
     background: color-mix(in srgb, var(--accent2) 14%, transparent);
     border: 1px solid color-mix(in srgb, var(--accent2) 45%, transparent);
-    transition: background-color 0.04s linear, box-shadow 0.04s linear, color 0.04s linear;
-  }
-  #reader-tempo-badge[style*="inline-flex"],
-  #reader-tempo-badge.visible {
-    display: inline-flex;
-  }
-  #reader-tempo-badge.lit {
-    background: rgba(139,28,28,0.9); box-shadow: 0 0 6px 1px rgba(139,28,28,0.55); color: #fff;
   }
   #reader-tempo-badge .dot {
     width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0;
@@ -1006,29 +1008,31 @@ function stopAndLeaveReader() {
 }
 
 /* ============================================================
-   METRONOME (blinking BPM light)
+   METRONOME (play button flashes with BPM)
    ============================================================ */
 let metronomeTimer = null;
 function startMetronome(tempo) {
   stopMetronome();
   const badge = document.getElementById("reader-tempo-badge");
   const numberEl = document.getElementById("reader-tempo-number");
+  const playBtn = document.getElementById("play-btn");
   if (!tempo) {
     badge.style.display = "none";
     return;
   }
   numberEl.textContent = String(tempo);
   badge.style.display = "inline-flex";
-  const halfBeatMs = 30000 / tempo; // half of the 60000/tempo beat period
-  badge.classList.add("lit");
+  if (!playBtn) return;
+  const halfBeatMs = 30000 / tempo;
+  playBtn.classList.add("lit");
   metronomeTimer = setInterval(() => {
-    badge.classList.toggle("lit");
+    playBtn.classList.toggle("lit");
   }, halfBeatMs);
 }
 function stopMetronome() {
   if (metronomeTimer) { clearInterval(metronomeTimer); metronomeTimer = null; }
-  const badge = document.getElementById("reader-tempo-badge");
-  if (badge) badge.classList.remove("lit");
+  const playBtn = document.getElementById("play-btn");
+  if (playBtn) playBtn.classList.remove("lit");
 }
 let songCountdownTimer = null;
 let songCountdownLeft = 0;
