@@ -235,6 +235,25 @@
   }
   .field textarea { min-height: 46vh; line-height: 1.55; resize: vertical; }
   .hint { font-size: 14px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+  .toggle-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 15px;
+    line-height: 1.45;
+    cursor: pointer;
+  }
+  .toggle-row input {
+    width: 22px;
+    height: 22px;
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
 
   /* ---------- Reader screen ---------- */
   #reader-topbar { background: var(--reader-top); }
@@ -398,6 +417,9 @@
   body.light .play-btn.counting {
     background: #a11616;
   }
+  .play-btn.listening {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent2) 45%, transparent);
+  }
   #reader-meta {
     display: none;
     align-items: center;
@@ -490,6 +512,13 @@
         <button class="btn btn-secondary" onclick="saveGithubToken()">Save token</button>
       </div>
       <div class="hint" id="token-status" style="margin-bottom:16px;"></div>
+      <div class="field">
+        <label>Start scroll when first line is heard</label>
+        <label class="toggle-row">
+          <input id="listen-first-line" type="checkbox" onchange="toggleListenFirstLine(this.checked)">
+          <span>Listen for first lyric line (iPad near monitor). If it misses, auto-starts after ~25s. Off = normal 10s autoplay.</span>
+        </label>
+      </div>
       <div class="bottom-actions" style="padding:0 0 16px;">
         <button class="btn btn-secondary" onclick="exportData()">Export</button>
         <button class="btn btn-secondary" onclick="loadBackupFile()">Load file</button>
@@ -684,6 +713,12 @@ function fillGithubTokenField() {
       ? "Token is saved on this device."
       : "Create a GitHub token with repo access, paste it here once, then Save token.";
   }
+  const listen = document.getElementById("listen-first-line");
+  if (listen) listen.checked = !!settings.listenFirstLine;
+}
+function toggleListenFirstLine(on) {
+  settings.listenFirstLine = !!on;
+  saveSettings();
 }
 
 async function persistActiveSet() {
@@ -735,10 +770,11 @@ function loadSettings() {
       const parsed = JSON.parse(raw);
       if (!parsed.fontSize || parsed.fontSize < 40) parsed.fontSize = 42;
       if (parsed.theme !== "light" && parsed.theme !== "dark") parsed.theme = "dark";
+      parsed.listenFirstLine = !!parsed.listenFirstLine;
       return parsed;
     }
   } catch (e) {}
-  return { theme: "dark", fontSize: 42 };
+  return { theme: "dark", fontSize: 42, listenFirstLine: false };
 }
 function saveSettings() {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
@@ -849,6 +885,7 @@ function openEdit(i) {
 function openEditFromReader() {
   cancelSongCountdown();
   cancelIntroCountdown();
+  disarmSongStart();
   openEdit(currentIndex);
 }
 function saveSong() {
@@ -1059,6 +1096,7 @@ function loadReaderSong(opts) {
   const autoPlayDelay = opts && opts.autoPlayDelay != null ? opts.autoPlayDelay : 10;
   cancelSongCountdown();
   cancelIntroCountdown();
+  disarmSongStart();
   stopScrolling();
   const s = songs[currentIndex] || {};
   document.getElementById("reader-title").textContent = s.title || "Untitled";
@@ -1080,6 +1118,7 @@ function loadReaderSong(opts) {
 function stopAndLeaveReader() {
   cancelSongCountdown();
   cancelIntroCountdown();
+  disarmSongStart();
   stopScrolling();
   stopMetronome();
   releaseWakeLock();
@@ -1175,7 +1214,7 @@ function cancelIntroCountdown() {
     introTimer = null;
   }
   introLeft = 0;
-  if (songCountdownTarget == null) {
+  if (songCountdownTarget == null && !songStartArmed) {
     hideAnnounceBar();
     clearPlayCountdownLook();
   }
@@ -1183,6 +1222,7 @@ function cancelIntroCountdown() {
 
 function scheduleAutoPlay(seconds) {
   cancelIntroCountdown();
+  disarmSongStart();
   const scrollEl = document.getElementById("reader-scroll");
   const song = songs[currentIndex] || {};
   if (!scrollEl || !scrollEl.querySelector(".lyrics")) {
@@ -1197,12 +1237,126 @@ function scheduleAutoPlay(seconds) {
     introLeft -= 1;
     if (introLeft <= 0) {
       cancelIntroCountdown();
-      startScrolling();
-      requestWakeLock();
+      if (settings.listenFirstLine) {
+        armSongStart();
+      } else {
+        beginPlayback();
+      }
       return;
     }
     setPlayCountdownNumber(introLeft);
   }, 1000);
+}
+
+const LISTEN_FALLBACK_MS = 25000;
+let songStartArmed = false;
+let listenFallbackTimer = null;
+let speechRecognition = null;
+let firstLineTarget = "";
+
+function normalizeLyricText(str) {
+  return String(str || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s']/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+function firstLyricLine(song) {
+  const lines = String((song && song.lyrics) || "").replace(/\r\n/g, "\n").split("\n");
+  for (const line of lines) {
+    if (line.trim()) return line.trim();
+  }
+  return "";
+}
+function transcriptMatchesFirstLine(transcript, targetLine) {
+  const heard = normalizeLyricText(transcript);
+  const target = normalizeLyricText(targetLine);
+  if (!heard || !target) return false;
+  if (heard.includes(target) || target.includes(heard)) return true;
+  const targetWords = target.split(" ").filter(w => w.length > 2);
+  if (!targetWords.length) return false;
+  const heardSet = new Set(heard.split(" ").filter(Boolean));
+  let hits = 0;
+  targetWords.forEach(w => { if (heardSet.has(w)) hits += 1; });
+  const need = Math.min(3, Math.max(2, Math.ceil(targetWords.length * 0.4)));
+  return hits >= need;
+}
+
+function disarmSongStart() {
+  songStartArmed = false;
+  firstLineTarget = "";
+  if (listenFallbackTimer) {
+    clearTimeout(listenFallbackTimer);
+    listenFallbackTimer = null;
+  }
+  if (speechRecognition) {
+    try { speechRecognition.onresult = null; speechRecognition.onerror = null; speechRecognition.onend = null; speechRecognition.stop(); } catch (e) {}
+    speechRecognition = null;
+  }
+}
+
+function beginPlayback() {
+  if (isPlaying) return;
+  disarmSongStart();
+  cancelIntroCountdown();
+  hideAnnounceBar();
+  clearPlayCountdownLook();
+  startScrolling();
+  requestWakeLock();
+}
+
+function armSongStart() {
+  disarmSongStart();
+  const song = songs[currentIndex] || {};
+  const scrollEl = document.getElementById("reader-scroll");
+  if (!scrollEl || !scrollEl.querySelector(".lyrics")) {
+    setPlayIcon(false);
+    return;
+  }
+  songStartArmed = true;
+  firstLineTarget = firstLyricLine(song);
+  showAnnounceBar("Listening for first line", song);
+  clearPlayCountdownLook();
+  setPlayIcon(false);
+  const btn = document.getElementById("play-btn");
+  if (btn) btn.classList.add("listening");
+
+  listenFallbackTimer = setTimeout(() => {
+    if (!songStartArmed || isPlaying) return;
+    beginPlayback();
+  }, LISTEN_FALLBACK_MS);
+
+  startFirstLineListener();
+}
+
+function startFirstLineListener() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR || !firstLineTarget) return;
+  try {
+    const rec = new SR();
+    speechRecognition = rec;
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = "en-US";
+    rec.maxAlternatives = 3;
+    rec.onresult = (event) => {
+      if (!songStartArmed || isPlaying) return;
+      let chunk = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        chunk += " " + (event.results[i][0] && event.results[i][0].transcript || "");
+      }
+      if (transcriptMatchesFirstLine(chunk, firstLineTarget)) beginPlayback();
+    };
+    rec.onerror = () => { /* fallback timer still covers miss */ };
+    rec.onend = () => {
+      if (songStartArmed && !isPlaying && speechRecognition === rec) {
+        try { rec.start(); } catch (e) {}
+      }
+    };
+    rec.start();
+  } catch (e) {
+    /* Mic/speech unavailable — fallback timer will auto-start. */
+  }
 }
 
 function cancelSongCountdown() {
@@ -1212,7 +1366,7 @@ function cancelSongCountdown() {
   }
   songCountdownLeft = 0;
   songCountdownTarget = null;
-  if (introLeft <= 0) {
+  if (introLeft <= 0 && !songStartArmed) {
     hideAnnounceBar();
     clearPlayCountdownLook();
   }
@@ -1229,6 +1383,7 @@ function finishSongCountdown() {
 function startSongCountdown(targetIndex) {
   if (targetIndex < 0 || targetIndex >= songs.length || targetIndex === currentIndex) return;
   stopScrolling();
+  disarmSongStart();
   cancelIntroCountdown();
   cancelSongCountdown();
   const current = songs[currentIndex] || {};
@@ -1272,6 +1427,7 @@ function togglePlay() {
   if (isCountdownActive()) {
     cancelSongCountdown();
     cancelIntroCountdown();
+    disarmSongStart();
     const current = songs[currentIndex] || {};
     document.getElementById("reader-title").textContent = current.title || "Untitled";
     document.getElementById("reader-artist").textContent = current.artist || "";
@@ -1281,22 +1437,31 @@ function togglePlay() {
     setPlayIcon(false);
     return;
   }
-  if (isPlaying) { stopScrolling(); } else { startScrolling(); requestWakeLock(); }
+  if (songStartArmed) {
+    beginPlayback();
+    return;
+  }
+  if (isPlaying) { stopScrolling(); } else { beginPlayback(); }
 }
 function setPlayIcon(playing) {
   const btn = document.getElementById("play-btn");
   if (!btn || btn.classList.contains("counting")) return;
+  btn.classList.remove("listening");
   btn.innerHTML = playing ? "&#10074;&#10074;" : "&#9654;";
 }
 function startScrolling() {
   const scrollEl = document.getElementById("reader-scroll");
   if (!scrollEl || !scrollEl.querySelector(".lyrics")) return;
   cancelIntroCountdown();
+  disarmSongStart();
   hideAnnounceBar();
   isPlaying = true;
   userHoldingScroll = false;
   const btn = document.getElementById("play-btn");
-  if (btn) btn.classList.remove("counting");
+  if (btn) {
+    btn.classList.remove("counting");
+    btn.classList.remove("listening");
+  }
   setPlayIcon(true);
   lastTs = null;
   scrollPos = scrollEl.scrollTop;
@@ -1308,7 +1473,10 @@ function startScrolling() {
 function stopScrolling() {
   isPlaying = false;
   const btn = document.getElementById("play-btn");
-  if (btn) btn.classList.remove("counting");
+  if (btn) {
+    btn.classList.remove("counting");
+    btn.classList.remove("listening");
+  }
   setPlayIcon(false);
   stopMetronome();
   if (scrollAnim) cancelAnimationFrame(scrollAnim);
