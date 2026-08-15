@@ -153,6 +153,17 @@
     font-size: 18px;
     text-transform: uppercase;
   }
+  #app-version {
+    display: none;
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+    opacity: 0.7;
+    letter-spacing: 0.8px;
+    padding: 0 16px 10px;
+    font-family: var(--display);
+  }
+  #screen-setlist.view-home #app-version { display: block; }
   #set-picks { flex: 1; overflow-y: auto; padding: 4px 20px 20px; }
   #set-picks:empty { display: none; }
   #set-picks .song-row {
@@ -484,6 +495,7 @@
         <button class="btn btn-secondary" onclick="exportData()">Export</button>
         <button class="btn btn-primary" onclick="requestWakeLock()">Keep awake</button>
       </div>
+      <div id="app-version"></div>
     </div>
     <input type="file" id="import-file" accept="application/json" style="display:none" onchange="importData(event)">
   </section>
@@ -637,6 +649,8 @@ const SETTINGS_KEY = "showLyricsReaderSettings_v1";
 const TOKEN_KEY = "showLyricsReaderGithubToken";
 const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
 const GH_REPO = "EitanYarimi/show-lyrics-reader";
+/* Bump APP_VERSION on each release (shown small on the home screen). */
+const APP_VERSION = "1.0.0";
 
 function loadSongs() {
   let stored = null;
@@ -1624,6 +1638,8 @@ applyTheme();
 applyFont();
 renderSetlist();
 loadSetsCatalog();
+const versionEl = document.getElementById("app-version");
+if (versionEl) versionEl.textContent = "v" + APP_VERSION;
 
 /* Block browser zoom (pinch / ctrl+scroll / ctrl+/-). App A+/A- still works. */
 document.addEventListener("gesturestart", (e) => e.preventDefault(), { passive: false });
