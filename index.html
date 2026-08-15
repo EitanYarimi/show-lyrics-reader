@@ -614,10 +614,10 @@
       </div>
       <div class="hint" id="token-status" style="margin-bottom:16px;"></div>
       <div class="field">
-        <label>Listen for first line (highlight only)</label>
+        <label>Listen for first line</label>
         <label class="toggle-row">
           <input id="listen-first-line" type="checkbox" onchange="toggleListenFirstLine(this.checked)">
-          <span>Listen right away and color the first lyric line when heard. Scroll starts only when you tap play (3s countdown). Off = normal 10s autoplay.</span>
+          <span>Listen right away. When the first lyric line is heard, highlight it and start scrolling. Tap play for a 3s manual start. Off = normal 10s autoplay.</span>
         </label>
       </div>
       <div class="bottom-actions" style="padding:0 0 16px;">
@@ -744,7 +744,7 @@ const TOKEN_KEY = "showLyricsReaderGithubToken";
 const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
 const GH_REPO = "EitanYarimi/show-lyrics-reader";
 /* Bump APP_VERSION on each release (shown small on the home screen). */
-const APP_VERSION = "1.0.13";
+const APP_VERSION = "1.0.14";
 
 function loadSongs() {
   let stored = null;
@@ -1585,14 +1585,24 @@ function highlightFirstLineHeard() {
   if (el) el.classList.add("heard");
 }
 
-function beginPlayback() {
+function beginPlayback(opts) {
   if (isPlaying) return;
+  const fromMic = opts && opts.fromMic;
   cancelManualStartCountdown();
   disarmSongStart();
   cancelIntroCountdown();
   hideAnnounceBar();
   clearPlayCountdownLook();
   resetReaderScrollToTop();
+  if (fromMic) {
+    highlightFirstLineHeard();
+    setTimeout(() => {
+      if (isPlaying) return;
+      startScrolling();
+      requestWakeLock();
+    }, 450);
+    return;
+  }
   startScrolling();
   requestWakeLock();
 }
@@ -1625,15 +1635,7 @@ function onFirstLineHeard() {
   firstLineHeard = true;
   highlightFirstLineHeard();
   stopFirstLineListener();
-  const song = songs[currentIndex] || {};
-  showAnnounceBar("Heard — tap play to start", song, { listening: true });
-  const bar = document.getElementById("announce-bar");
-  if (bar) bar.classList.remove("listening"); // stop mic blink; still waiting for play
-  const btn = document.getElementById("play-btn");
-  if (btn && manualStartLeft <= 0) {
-    btn.classList.remove("listening");
-    btn.innerHTML = "&#9654;";
-  }
+  beginPlayback({ fromMic: true });
 }
 
 function startFirstLineListener() {
