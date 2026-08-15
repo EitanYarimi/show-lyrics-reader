@@ -727,6 +727,7 @@ function openEdit(i) {
   showScreen("edit");
 }
 function openEditFromReader() {
+  cancelSongCountdown();
   openEdit(currentIndex);
 }
 function saveSong() {
