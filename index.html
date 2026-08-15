@@ -280,23 +280,38 @@
   .controls-row2 { display: flex; justify-content: center; gap: 18px; margin-top: 10px; font-size: 12px; color: var(--muted); }
   .controls-row2 span { display: flex; align-items: center; gap: 4px; }
 
-  #song-header { padding: 4px 20px 2px; text-align: center; }
-  #song-header .t { font-size: 18px; font-weight: 700; font-family: var(--display); letter-spacing: 1px; }
+  #song-header { padding: 4px 12px 2px; text-align: center; min-width: 0; }
+  #song-header .t { font-size: 18px; font-weight: 700; font-family: var(--display); letter-spacing: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #song-header .a-line { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 2px; }
-  #song-header .a { font-size: 14px; color: var(--muted); }
+  #song-header .a { font-size: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #reader-tempo-badge {
-    display: inline-flex; align-items: center; justify-content: center; gap: 5px;
-    min-height: 26px; padding: 2px 10px; border-radius: 14px;
-    font-size: 13px; font-weight: 700; font-family: var(--display); color: var(--accent2);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    flex-shrink: 0;
+    min-height: 22px;
+    padding: 1px 7px;
+    margin-right: 2px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: var(--display);
+    letter-spacing: 0.4px;
+    color: var(--accent2);
     background: color-mix(in srgb, var(--accent2) 14%, transparent);
-    border: 1.5px solid color-mix(in srgb, var(--accent2) 45%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent2) 45%, transparent);
     transition: background-color 0.04s linear, box-shadow 0.04s linear, color 0.04s linear;
   }
+  #reader-tempo-badge[style*="inline-flex"],
+  #reader-tempo-badge.visible {
+    display: inline-flex;
+  }
   #reader-tempo-badge.lit {
-    background: rgba(139,28,28,0.85); box-shadow: 0 0 14px 3px rgba(139,28,28,0.7); color: #fff;
+    background: rgba(139,28,28,0.9); box-shadow: 0 0 6px 1px rgba(139,28,28,0.55); color: #fff;
   }
   #reader-tempo-badge .dot {
-    width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0;
+    width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0;
   }
 
   #song-countdown {
@@ -465,11 +480,11 @@
         <div class="t" id="reader-title">Song</div>
         <div class="a-line">
           <div class="a" id="reader-artist">Artist</div>
-          <div id="reader-tempo-badge" style="display:none;">
-            <span class="dot"></span>
-            <span id="reader-tempo-number"></span>
-          </div>
         </div>
+      </div>
+      <div id="reader-tempo-badge" style="display:none;">
+        <span class="dot"></span>
+        <span id="reader-tempo-number"></span>
       </div>
       <button class="icon-btn" onclick="openEditFromReader()" title="Edit">&#9998;</button>
     </div>
@@ -1002,7 +1017,7 @@ function startMetronome(tempo) {
     badge.style.display = "none";
     return;
   }
-  numberEl.textContent = tempo + " BPM";
+  numberEl.textContent = String(tempo);
   badge.style.display = "inline-flex";
   const halfBeatMs = 30000 / tempo; // half of the 60000/tempo beat period
   badge.classList.add("lit");
