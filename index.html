@@ -192,7 +192,39 @@
     display: flex; align-items: center; gap: 10px;
     background: var(--card); border: 1px solid var(--border);
     border-radius: 4px; padding: 12px 12px; margin-bottom: 8px;
+    touch-action: pan-y;
   }
+  .song-row.dragging {
+    opacity: 0.92;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+    border-color: var(--accent2);
+    z-index: 50;
+    margin-bottom: 0;
+    pointer-events: none;
+  }
+  .song-row.drag-placeholder {
+    background: color-mix(in srgb, var(--accent2) 18%, transparent);
+    border: 1px dashed var(--accent2);
+    opacity: 0.85;
+  }
+  .drag-handle {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg-alt);
+    color: var(--muted);
+    font-size: 18px;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .drag-handle:active { cursor: grabbing; background: var(--border); color: var(--text); }
   .song-row .num { color: var(--accent2); font-family: var(--display); font-size: 16px; width: 26px; text-align: center; flex-shrink:0; }
   .song-row .info {
     flex: 1; min-width: 0; cursor: pointer;
@@ -692,7 +724,7 @@ const TOKEN_KEY = "showLyricsReaderGithubToken";
 const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
 const GH_REPO = "EitanYarimi/show-lyrics-reader";
 /* Bump APP_VERSION on each release (shown small on the home screen). */
-const APP_VERSION = "1.0.9";
+const APP_VERSION = "1.0.10";
 
 function loadSongs() {
   let stored = null;
