@@ -390,7 +390,7 @@
   /* ---------- Reader screen ---------- */
   #reader-topbar { background: var(--reader-top); }
   #reader-scroll {
-    flex: 1; overflow-y: auto; padding: 28px 22px 55vh;
+    flex: 1; overflow-y: auto; padding: 45vh 22px 55vh;
     scroll-behavior: auto;
     background: var(--reader-bg);
     -webkit-overflow-scrolling: touch;
@@ -822,7 +822,7 @@ const TOKEN_KEY = "showLyricsReaderGithubToken";
 const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
 const GH_REPO = "EitanYarimi/show-lyrics-reader";
 /* Bump APP_VERSION on each release (shown small on the home screen). */
-const APP_VERSION = "1.0.25";
+const APP_VERSION = "1.0.26";
 
 function loadSongs() {
   let stored = null;
@@ -1413,16 +1413,10 @@ function resetReaderScrollToTop() {
   const scrollEl = document.getElementById("reader-scroll");
   scrollPos = 0;
   if (!scrollEl) return;
+  // Top padding parks the first lyric near mid-viewport for sync tolerance.
   const apply = () => {
     scrollEl.scrollTop = 0;
     scrollPos = 0;
-    // Force the first lyric into view, then re-zero (iOS sometimes restores scroll after layout).
-    const first = scrollEl.querySelector(".lyric-line.first-line, .lyric-line");
-    if (first) {
-      try { first.scrollIntoView({ block: "start", inline: "nearest" }); } catch (e) {}
-      scrollEl.scrollTop = 0;
-      scrollPos = 0;
-    }
     updateProgress();
   };
   apply();
@@ -1848,11 +1842,11 @@ function scrollSpeedPxPerSec(song, scrollEl) {
   const durSec = parseDurationToSeconds(song.duration);
   if (durSec && durSec > 0) totalSec = durSec;
 
-  // Scroll distance covers lyric block only — ignore the tall bottom padding.
+  // Scroll until the last lyric sits near mid-viewport (matches start position).
   let distance = maxScroll;
   if (lines.length) {
     const last = lines[lines.length - 1];
-    const target = Math.max(0, last.offsetTop - scrollEl.clientHeight * 0.28);
+    const target = Math.max(0, last.offsetTop - scrollEl.clientHeight * 0.5);
     distance = Math.min(maxScroll, Math.max(1, target));
   }
 
