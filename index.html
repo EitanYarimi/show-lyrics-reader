@@ -165,35 +165,37 @@
   }
   #set-picks:empty { display: none; }
   #set-picks .set-row {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 14px;
     width: 100%;
-    background: var(--card);
+    min-height: 88px;
+    overflow: hidden;
+    isolation: isolate;
+    background-color: #1a120e;
+    background-size: cover;
+    background-position: center;
     border: 1px solid var(--border);
     border-radius: 4px;
-    padding: 16px 14px;
+    padding: 20px 16px;
     margin: 0 0 10px;
     cursor: pointer;
     text-align: left;
-    color: inherit;
+    color: #fff8ec;
     font: inherit;
     -webkit-tap-highlight-color: transparent;
   }
-  #set-picks .set-row:active { opacity: 0.88; }
-  #set-picks .set-row-thumb {
-    flex-shrink: 0;
-    width: 52px;
-    height: 52px;
-    border-radius: 4px;
-    border: 1px solid var(--border);
-    background: linear-gradient(160deg, #2a1a12 0%, #120d0a 55%, #3a1212 100%);
-    background-size: cover;
-    background-position: center;
+  #set-picks .set-row::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: linear-gradient(90deg, rgba(8,5,4,0.82) 0%, rgba(8,5,4,0.55) 55%, rgba(8,5,4,0.4) 100%);
+    pointer-events: none;
   }
-  body.light #set-picks .set-row-thumb {
-    background: linear-gradient(160deg, #ebe0d0 0%, #d4c0a4 55%, #c9a070 100%);
-  }
+  #set-picks .set-row > * { position: relative; z-index: 1; }
+  #set-picks .set-row:active { opacity: 0.92; }
   #set-picks .set-row-info { flex: 1; min-width: 0; }
   #set-picks .set-row-title {
     font-family: var(--display);
@@ -201,8 +203,9 @@
     font-weight: 700;
     letter-spacing: 1px;
     text-transform: uppercase;
-    color: var(--text);
+    color: #fff8ec;
     line-height: 1.15;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.45);
   }
   #set-picks .set-row-action {
     flex-shrink: 0;
@@ -755,7 +758,7 @@ const TOKEN_KEY = "showLyricsReaderGithubToken";
 const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
 const GH_REPO = "EitanYarimi/show-lyrics-reader";
 /* Bump APP_VERSION on each release (shown small on the home screen). */
-const APP_VERSION = "1.0.15";
+const APP_VERSION = "1.0.16";
 
 function loadSongs() {
   let stored = null;
@@ -1260,11 +1263,10 @@ function renderSetRows(container, sets) {
     row.type = "button";
     row.className = "set-row";
     row.setAttribute("aria-label", "Open set " + name);
-    const thumbStyle = image
-      ? ' style="background-image:url(\'' + resolveJsonUrl(image).replace(/'/g, "%27") + '\')"'
-      : "";
+    if (image) {
+      row.style.backgroundImage = "url('" + resolveJsonUrl(image).replace(/'/g, "%27") + "')";
+    }
     row.innerHTML = `
-      <span class="set-row-thumb"${thumbStyle} aria-hidden="true"></span>
       <span class="set-row-info">
         <span class="set-row-title">${escapeHtml(name)}</span>
       </span>
