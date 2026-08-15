@@ -990,7 +990,8 @@ function loadReaderSong() {
   const s = songs[currentIndex];
   document.getElementById("reader-title").textContent = s.title || "Untitled";
   document.getElementById("reader-artist").textContent = s.artist || "";
-  startMetronome(s.tempo);
+  updateTempoBadge(s.tempo);
+  stopMetronome();
   const scrollEl = document.getElementById("reader-scroll");
   if (s.lyrics && s.lyrics.trim().length > 0) {
     scrollEl.innerHTML = `<div class="lyrics">${escapeHtml(s.lyrics)}</div>`;
@@ -1011,21 +1012,24 @@ function stopAndLeaveReader() {
 }
 
 /* ============================================================
-   METRONOME (play button flashes with BPM)
+   METRONOME (play button flashes with BPM only while playing)
    ============================================================ */
 let metronomeTimer = null;
-function startMetronome(tempo) {
-  stopMetronome();
+function updateTempoBadge(tempo) {
   const badge = document.getElementById("reader-tempo-badge");
   const numberEl = document.getElementById("reader-tempo-number");
-  const playBtn = document.getElementById("play-btn");
   if (!tempo) {
     badge.style.display = "none";
     return;
   }
   numberEl.textContent = String(tempo);
   badge.style.display = "inline-flex";
-  if (!playBtn) return;
+}
+function startMetronome(tempo) {
+  stopMetronome();
+  updateTempoBadge(tempo);
+  const playBtn = document.getElementById("play-btn");
+  if (!tempo || !playBtn) return;
   const halfBeatMs = 30000 / tempo;
   playBtn.classList.add("lit");
   metronomeTimer = setInterval(() => {
@@ -1112,12 +1116,15 @@ function startScrolling() {
   isPlaying = true;
   setPlayIcon(true);
   lastTs = null;
+  const song = songs[currentIndex] || {};
+  startMetronome(song.tempo);
   if (scrollAnim) cancelAnimationFrame(scrollAnim);
   scrollAnim = requestAnimationFrame(scrollStep);
 }
 function stopScrolling() {
   isPlaying = false;
   setPlayIcon(false);
+  stopMetronome();
   if (scrollAnim) cancelAnimationFrame(scrollAnim);
   scrollAnim = null;
   lastTs = null;
