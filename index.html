@@ -555,7 +555,7 @@
         <label>Start scroll when first line is heard</label>
         <label class="toggle-row">
           <input id="listen-first-line" type="checkbox" onchange="toggleListenFirstLine(this.checked)">
-          <span>Listen for first lyric line (iPad near monitor). If it misses, auto-starts after ~25s. Off = normal 10s autoplay.</span>
+          <span>Listen for first lyric line right away (iPad near monitor). Tap play for a 3s start. If mic misses, auto-starts after ~25s. Off = normal 10s autoplay.</span>
         </label>
       </div>
       <div class="bottom-actions" style="padding:0 0 16px;">
@@ -682,7 +682,7 @@ const TOKEN_KEY = "showLyricsReaderGithubToken";
 const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
 const GH_REPO = "EitanYarimi/show-lyrics-reader";
 /* Bump APP_VERSION on each release (shown small on the home screen). */
-const APP_VERSION = "1.0.4";
+const APP_VERSION = "1.0.5";
 
 function loadSongs() {
   let stored = null;
@@ -1167,7 +1167,10 @@ function loadReaderSong(opts) {
   scrollPos = 0;
   updateProgress();
   setPlayIcon(false);
-  if (autoPlayDelay > 0) scheduleAutoPlay(autoPlayDelay);
+  if (autoPlayDelay > 0) {
+    if (settings.listenFirstLine) armSongStart();
+    else scheduleAutoPlay(autoPlayDelay);
+  }
 }
 function stopAndLeaveReader() {
   cancelSongCountdown();
@@ -1280,6 +1283,7 @@ function cancelIntroCountdown() {
 
 function scheduleAutoPlay(seconds) {
   cancelIntroCountdown();
+  cancelManualStartCountdown();
   disarmSongStart();
   const scrollEl = document.getElementById("reader-scroll");
   const song = songs[currentIndex] || {};
@@ -1288,6 +1292,7 @@ function scheduleAutoPlay(seconds) {
     hideAnnounceBar();
     return;
   }
+  // Listen mode arms immediately from loadReaderSong; this path is normal autoplay only.
   introLeft = seconds;
   showAnnounceBar("Starting", song);
   setPlayCountdownNumber(introLeft);
@@ -1295,11 +1300,7 @@ function scheduleAutoPlay(seconds) {
     introLeft -= 1;
     if (introLeft <= 0) {
       cancelIntroCountdown();
-      if (settings.listenFirstLine) {
-        armSongStart();
-      } else {
-        beginPlayback();
-      }
+      beginPlayback();
       return;
     }
     setPlayCountdownNumber(introLeft);
@@ -1311,6 +1312,36 @@ let songStartArmed = false;
 let listenFallbackTimer = null;
 let speechRecognition = null;
 let firstLineTarget = "";
+let manualStartTimer = null;
+let manualStartLeft = 0;
+
+function cancelManualStartCountdown() {
+  if (manualStartTimer) {
+    clearInterval(manualStartTimer);
+    manualStartTimer = null;
+  }
+  manualStartLeft = 0;
+}
+
+function startManualStartCountdown(seconds) {
+  cancelManualStartCountdown();
+  manualStartLeft = seconds;
+  setPlayCountdownNumber(manualStartLeft);
+  manualStartTimer = setInterval(() => {
+    if (!songStartArmed && !isPlaying) {
+      cancelManualStartCountdown();
+      clearPlayCountdownLook();
+      return;
+    }
+    manualStartLeft -= 1;
+    if (manualStartLeft <= 0) {
+      cancelManualStartCountdown();
+      beginPlayback();
+      return;
+    }
+    setPlayCountdownNumber(manualStartLeft);
+  }, 1000);
+}
 
 function normalizeLyricText(str) {
   return String(str || "")
@@ -1348,6 +1379,7 @@ function transcriptMatchesFirstLine(transcript, targetCue) {
 function disarmSongStart() {
   songStartArmed = false;
   firstLineTarget = "";
+  cancelManualStartCountdown();
   if (listenFallbackTimer) {
     clearTimeout(listenFallbackTimer);
     listenFallbackTimer = null;
@@ -1366,6 +1398,7 @@ function highlightFirstLineHeard() {
 function beginPlayback(opts) {
   if (isPlaying) return;
   const fromMic = opts && opts.fromMic;
+  cancelManualStartCountdown();
   disarmSongStart();
   cancelIntroCountdown();
   hideAnnounceBar();
@@ -1505,7 +1538,7 @@ function scrollSpeedPxPerSec(song, scrollEl) {
 }
 
 function togglePlay() {
-  // Tap during countdown cancels auto-start / auto-advance.
+  // During get-ready / next-song countdown: cancel.
   if (isCountdownActive()) {
     cancelSongCountdown();
     cancelIntroCountdown();
@@ -1519,8 +1552,19 @@ function togglePlay() {
     setPlayIcon(false);
     return;
   }
+  // Listening: play starts a 3s countdown (tap again cancels countdown, keeps listening).
   if (songStartArmed) {
-    beginPlayback();
+    if (manualStartLeft > 0) {
+      cancelManualStartCountdown();
+      clearPlayCountdownLook();
+      const btn = document.getElementById("play-btn");
+      if (btn) {
+        btn.classList.add("listening");
+        btn.innerHTML = "&#127908;";
+      }
+      return;
+    }
+    startManualStartCountdown(3);
     return;
   }
   if (isPlaying) { stopScrolling(); } else { beginPlayback(); }
