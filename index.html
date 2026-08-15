@@ -649,6 +649,54 @@
     border-color: var(--border);
   }
 
+  #save-toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(24px + env(safe-area-inset-bottom));
+    transform: translateX(-50%) translateY(120%);
+    z-index: 200;
+    max-width: min(92vw, 420px);
+    padding: 14px 20px;
+    border-radius: 10px;
+    font-family: var(--display);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    text-align: center;
+    line-height: 1.35;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.28s ease, opacity 0.28s ease;
+  }
+  #save-toast.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+  #save-toast.ok {
+    background: #1f6b3a;
+    color: #f3fff6;
+    border: 1px solid #2f9e57;
+  }
+  #save-toast.local {
+    background: #3d3420;
+    color: #fff4d6;
+    border: 1px solid var(--accent2);
+  }
+  #save-toast.err {
+    background: #6b1c1c;
+    color: #fff0ec;
+    border: 1px solid #c62828;
+  }
+  #save-toast.pending {
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  body.light #save-toast.ok { background: #1b7a3c; }
+  body.light #save-toast.local { background: #5c4a22; color: #fff8ec; }
+  body.light #save-toast.err { background: #a11616; }
+
   ::-webkit-scrollbar { display: none; }
 </style>
 </head>
@@ -824,6 +872,7 @@
     </div>
   </section>
 
+  <div id="save-toast" role="status" aria-live="polite"></div>
 </div>
 
 <script>
@@ -881,7 +930,7 @@ function saveSongs(syncRemote) {
   return Promise.resolve(true);
 }
 
-function setSaveStatus(text) {
+function setSaveStatus(text, kind) {
   const el = document.getElementById("save-status");
   if (el) el.textContent = text || "";
   const sub = document.getElementById("show-sub");
@@ -889,6 +938,21 @@ function setSaveStatus(text) {
       document.getElementById("screen-setlist").classList.contains("view-set") && text) {
     sub.textContent = text;
   }
+  if (text) showSaveToast(text, kind || "pending");
+}
+
+let saveToastTimer = null;
+function showSaveToast(message, kind) {
+  const toast = document.getElementById("save-toast");
+  if (!toast) return;
+  toast.textContent = message;
+  toast.className = "";
+  toast.classList.add(kind || "pending", "show");
+  clearTimeout(saveToastTimer);
+  if (kind === "pending") return;
+  saveToastTimer = setTimeout(() => {
+    toast.classList.remove("show");
+  }, kind === "err" ? 4500 : 2800);
 }
 
 function ensureActiveSetPath() {
@@ -963,14 +1027,14 @@ async function persistActiveSet(retries) {
   const path = ensureActiveSetPath();
   const token = localStorage.getItem(TOKEN_KEY) || "";
   if (!path) {
-    setSaveStatus("Saved on device only — open a shared set from Home to sync GitHub.");
+    setSaveStatus("Saved on this device only", "local");
     return false;
   }
   if (!token) {
-    setSaveStatus("Saved on device only — add a GitHub token in Settings to sync.");
+    setSaveStatus("Saved on this device only — add GitHub token in Settings", "local");
     return false;
   }
-  setSaveStatus("Saving to GitHub…");
+  setSaveStatus("Saving to GitHub…", "pending");
   try {
     const api = "https://api.github.com/repos/" + GH_REPO + "/contents/" + path;
     const headers = {
@@ -979,7 +1043,7 @@ async function persistActiveSet(retries) {
     };
     const current = await fetch(api, { headers, cache: "no-store" });
     if (current.status === 401 || current.status === 403) {
-      setSaveStatus("GitHub auth failed — check token has repo access.");
+      setSaveStatus("GitHub auth failed — check token has repo access", "err");
       return false;
     }
     if (!current.ok) throw new Error("read " + current.status);
@@ -1000,7 +1064,7 @@ async function persistActiveSet(retries) {
       return persistActiveSet(retries == null ? 1 : retries - 1);
     }
     if (put.status === 401 || put.status === 403) {
-      setSaveStatus("GitHub auth failed — check token has repo access.");
+      setSaveStatus("GitHub auth failed — check token has repo access", "err");
       return false;
     }
     if (!put.ok) {
@@ -1011,10 +1075,13 @@ async function persistActiveSet(retries) {
       } catch (e) {}
       throw new Error(detail);
     }
-    setSaveStatus("Saved to GitHub · " + path);
+    setSaveStatus("Saved to GitHub successfully", "ok");
     return true;
   } catch (e) {
-    setSaveStatus("Saved on device — GitHub sync failed: " + (e && e.message ? e.message : "error"));
+    setSaveStatus(
+      "Saved on this device — GitHub sync failed" + (e && e.message ? ": " + e.message : ""),
+      "err"
+    );
     return false;
   }
 }
@@ -1296,7 +1363,7 @@ async function saveSong() {
     duration: document.getElementById("edit-duration").value.trim(),
     lyrics: document.getElementById("edit-lyrics").value,
   };
-  setSaveStatus("Saving…");
+  setSaveStatus("Saving…", "pending");
   await saveSongs(true);
   renderSetlist();
   showScreen("setlist");
