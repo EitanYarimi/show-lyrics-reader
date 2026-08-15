@@ -93,6 +93,37 @@
     padding: 8px 10px; cursor: pointer; border-radius: 8px;
   }
   .icon-btn:active { background: var(--border); }
+  .topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .topbar-text-btn {
+    background: var(--bg-alt);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 4px;
+    padding: 10px 14px;
+    min-height: 44px;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: var(--display);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  .topbar-text-btn:active { opacity: 0.85; }
+  #screen-setlist.editing .topbar-text-btn {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--btn-on-accent);
+  }
+  #screen-setlist:not(.editing) #add-song-btn,
+  #screen-setlist:not(.editing) .drag-handle,
+  #screen-setlist:not(.editing) .song-row .actions {
+    display: none;
+  }
 
   /* ---------- Setlist screen ---------- */
   #screen-setlist.view-home {
@@ -607,7 +638,10 @@
         <h1 id="show-title">GigSync</h1>
         <div class="sub" id="show-sub">Choose a set</div>
       </div>
-      <button class="icon-btn" onclick="addSong()" title="Add song">+</button>
+      <div class="topbar-actions">
+        <button type="button" class="topbar-text-btn" id="setlist-edit-btn" onclick="toggleSetlistEdit()" title="Edit setlist">Edit</button>
+        <button type="button" class="icon-btn" id="add-song-btn" onclick="addSong()" title="Add song">+</button>
+      </div>
     </div>
     <div id="home-brand">
       <h1 class="home-brand-title">
@@ -800,7 +834,7 @@ const TOKEN_KEY = "showLyricsReaderGithubToken";
 const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
 const GH_REPO = "EitanYarimi/show-lyrics-reader";
 /* Bump APP_VERSION on each release (shown small on the home screen). */
-const APP_VERSION = "1.0.18";
+const APP_VERSION = "1.0.19";
 
 function loadSongs() {
   let stored = null;
@@ -986,6 +1020,23 @@ function showScreen(name) {
 /* ============================================================
    SETLIST SCREEN
    ============================================================ */
+let setlistEditMode = false;
+
+function setSetlistEditMode(on) {
+  setlistEditMode = !!on;
+  const screen = document.getElementById("screen-setlist");
+  screen.classList.toggle("editing", setlistEditMode);
+  const btn = document.getElementById("setlist-edit-btn");
+  if (btn) {
+    btn.textContent = setlistEditMode ? "Done" : "Edit";
+    btn.title = setlistEditMode ? "Done editing" : "Edit setlist";
+  }
+}
+
+function toggleSetlistEdit() {
+  setSetlistEditMode(!setlistEditMode);
+}
+
 function renderSetlist() {
   const container = document.getElementById("setlist-items");
   container.innerHTML = "";
@@ -1012,6 +1063,7 @@ function renderSetlist() {
     row.querySelector(".info").addEventListener("click", () => openReader(i));
     row.querySelector("[data-edit]").addEventListener("click", (e) => {
       e.stopPropagation();
+      if (!setlistEditMode) return;
       openEdit(i);
     });
     row.querySelector(".drag-handle").addEventListener("pointerdown", onSongDragStart);
@@ -1022,6 +1074,7 @@ function renderSetlist() {
 let songDrag = null;
 
 function onSongDragStart(e) {
+  if (!setlistEditMode) return;
   if (e.button != null && e.button !== 0) return;
   const handle = e.currentTarget;
   const row = handle.closest(".song-row");
@@ -1126,6 +1179,7 @@ function onSongDragEnd(e) {
 }
 
 function moveSong(i, dir) {
+  if (!setlistEditMode) return;
   const j = i + dir;
   if (j < 0 || j >= songs.length) return;
   [songs[i], songs[j]] = [songs[j], songs[i]];
@@ -1133,6 +1187,7 @@ function moveSong(i, dir) {
   renderSetlist();
 }
 function addSong() {
+  if (!setlistEditMode) return;
   songs.push({ title: "New Song", artist: "", tempo: null, key: "", duration: "", lyrics: "" });
   saveSongs(true);
   openEdit(songs.length - 1);
@@ -1235,6 +1290,7 @@ function applySongsJson(text, successMessage) {
 }
 
 function showHome() {
+  setSetlistEditMode(false);
   const screen = document.getElementById("screen-setlist");
   screen.classList.add("view-home");
   screen.classList.remove("view-set");
@@ -1243,6 +1299,7 @@ function showHome() {
   showScreen("setlist");
 }
 function showSetView(name) {
+  setSetlistEditMode(false);
   const screen = document.getElementById("screen-setlist");
   screen.classList.remove("view-home");
   screen.classList.add("view-set");
