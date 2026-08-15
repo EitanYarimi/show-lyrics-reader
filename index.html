@@ -384,8 +384,8 @@
     align-items: center;
     justify-content: center;
     flex-direction: column;
-    gap: 4px;
-    padding: 14px 18px 16px;
+    gap: 2px;
+    padding: 8px 14px 10px;
     background: color-mix(in srgb, var(--accent) 92%, #000);
     border-bottom: 2px solid var(--accent2);
     text-align: center;
@@ -393,6 +393,15 @@
     animation: announceDrop 0.28s ease-out;
   }
   #announce-bar.open { display: flex; }
+  #announce-bar.listening {
+    flex-direction: row;
+    gap: 10px;
+    padding: 8px 14px;
+  }
+  #announce-bar.listening .announce-title,
+  #announce-bar.listening .announce-artist {
+    display: none;
+  }
   #announce-bar .announce-label {
     font-family: var(--display);
     font-size: 12px;
@@ -409,6 +418,7 @@
     height: 18px;
     color: #fff8ec;
     animation: micBlink 0.7s ease-in-out infinite;
+    flex-shrink: 0;
   }
   #announce-bar.listening #announce-mic { display: inline-block; }
   @keyframes micBlink {
@@ -422,17 +432,17 @@
   }
   #announce-bar .announce-title {
     font-family: var(--display);
-    font-size: clamp(26px, 5.5vw, 40px);
+    font-size: clamp(18px, 3.5vw, 26px);
     font-weight: 700;
     letter-spacing: 1px;
-    line-height: 1.1;
+    line-height: 1.15;
     color: #fff8ec;
     text-shadow: 0 0 18px rgba(0, 0, 0, 0.35);
     animation: titlePulse 0.7s ease-in-out infinite;
     max-width: 96vw;
   }
   #announce-bar .announce-artist {
-    font-size: 15px;
+    font-size: 13px;
     color: rgba(255, 248, 236, 0.82);
     max-width: 96vw;
     white-space: nowrap;
@@ -682,7 +692,7 @@ const TOKEN_KEY = "showLyricsReaderGithubToken";
 const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
 const GH_REPO = "EitanYarimi/show-lyrics-reader";
 /* Bump APP_VERSION on each release (shown small on the home screen). */
-const APP_VERSION = "1.0.5";
+const APP_VERSION = "1.0.6";
 
 function loadSongs() {
   let stored = null;
@@ -1235,13 +1245,15 @@ let introLeft = 0;
 
 function showAnnounceBar(label, song, opts) {
   const bar = document.getElementById("announce-bar");
+  const listening = !!(opts && opts.listening);
   document.getElementById("announce-label").textContent = label || "";
   document.getElementById("announce-title").textContent = (song && song.title) || "Untitled";
   document.getElementById("announce-artist").textContent = (song && song.artist) || "";
-  bar.classList.toggle("listening", !!(opts && opts.listening));
+  bar.classList.toggle("listening", listening);
   bar.classList.add("open");
   const header = document.getElementById("song-header");
-  if (header) header.style.visibility = "hidden";
+  // Keep the normal title visible while listening so lyrics aren't covered by a big banner.
+  if (header) header.style.visibility = listening ? "" : "hidden";
 }
 function hideAnnounceBar() {
   const bar = document.getElementById("announce-bar");
