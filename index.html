@@ -692,7 +692,7 @@ const TOKEN_KEY = "showLyricsReaderGithubToken";
 const ACTIVE_SET_KEY = "showLyricsReaderActiveSet";
 const GH_REPO = "EitanYarimi/show-lyrics-reader";
 /* Bump APP_VERSION on each release (shown small on the home screen). */
-const APP_VERSION = "1.0.7";
+const APP_VERSION = "1.0.8";
 
 function loadSongs() {
   let stored = null;
@@ -1165,7 +1165,8 @@ function loadReaderSong(opts) {
     let markedFirst = false;
     scrollEl.innerHTML = `<div class="lyrics">${lines.map((line) => {
       const isBlank = !line.trim();
-      const isFirst = !isBlank && !markedFirst;
+      const isRealLyric = !isBlank && !!stripLyricBracketTags(line);
+      const isFirst = isRealLyric && !markedFirst;
       if (isFirst) markedFirst = true;
       const cls = isFirst ? "lyric-line first-line" : "lyric-line";
       return `<div class="${cls}">${isBlank ? "&nbsp;" : escapeHtml(line)}</div>`;
@@ -1362,12 +1363,22 @@ function normalizeLyricText(str) {
     .replace(/\s+/g, " ")
     .trim();
 }
+function stripLyricBracketTags(line) {
+  // Remove [Verse], [Chorus], [Intro], etc., including mixed into a lyric line.
+  return String(line || "")
+    .replace(/\[[^\]]*\]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 function firstLyricCue(song) {
-  // Only the first 3 words of the first lyric line — enough to catch the vocal entry.
+  // First 3 words of the first real lyric line (skip [Verse]/[Chorus] markers).
   const lines = String((song && song.lyrics) || "").replace(/\r\n/g, "\n").split("\n");
   for (const line of lines) {
     if (!line.trim()) continue;
-    const words = normalizeLyricText(line).split(" ").filter(Boolean);
+    const cleaned = stripLyricBracketTags(line);
+    if (!cleaned) continue;
+    const words = normalizeLyricText(cleaned).split(" ").filter(Boolean);
+    if (!words.length) continue;
     return words.slice(0, 3).join(" ");
   }
   return "";
