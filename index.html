@@ -1336,6 +1336,7 @@ function scrollStep(ts) {
       scrollEl.scrollTop = maxScroll;
       updateProgress();
       stopScrolling();
+      if (currentIndex < songs.length - 1) nextSong();
       return;
     }
   }
